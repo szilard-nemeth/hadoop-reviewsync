@@ -26,7 +26,6 @@ class JiraWrapper:
     
     # key: branch name, value: JiraPath object
     patches = {}
-    
     for patch in jira_patches:
       branch = patch.target_branch
       if branch not in patches:
@@ -39,6 +38,13 @@ class JiraWrapper:
       
     print "Found patches: " + str(patches)
     LOG.info("Found patches: %s", patches)
+
+    #Sanity check: trunk patch is present for all patch objects
+    if "trunk" not in patches:
+      raise ValueError("Patch targeted to branch 'trunk' should be present "
+                       "for each patch, however trunk patch is not present for issue %s!", issue_id)
+      
+    
     return patches
       
       

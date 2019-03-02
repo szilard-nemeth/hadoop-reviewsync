@@ -2,7 +2,10 @@
 
 import argparse
 import sys
+import os
 from jira_wrapper import JiraWrapper
+from git_wrapper import GitWrapper
+from os.path import expanduser
 
 __author__ = 'Jason Vasquez Orona'
 
@@ -35,7 +38,11 @@ if __name__ == '__main__':
   print "Jira URL: %s" % jira_url
   print "Issues: %s" % issues
   jira_wrapper = JiraWrapper(jira_url)
-  
-  for i in issues:
-    jira_wrapper.list_attachments(i)
-    jira_wrapper.get_latest_attachments_per_branch(i)
+
+  home = expanduser("~")
+  git_path = os.path.join(home, "gitpython")
+  git_wrapper = GitWrapper(git_path)
+  git_wrapper.sync_hadoop()
+  # for i in issues:
+  #   jira_wrapper.list_attachments(i)
+  #   jira_wrapper.get_latest_attachments_per_branch(i)
