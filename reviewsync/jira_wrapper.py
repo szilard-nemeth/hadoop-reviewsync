@@ -1,5 +1,6 @@
 from jira import JIRA
 import re
+import os
 import logging
 from jira_patch import JiraPatch, PatchOwner
 
@@ -8,10 +9,34 @@ LOG = logging.getLogger(__name__)
 DEFAULT_PATCH_EXTENSION = "patch"
 
 class JiraWrapper:
-  def __init__(self, jira_url):
+  def __init__(self, jira_url, patches_root):
     options = { 'server': jira_url}
     self.jira = JIRA(options)
+    self.patches_root = patches_root
     
+  def download_attachment(self, patch):
+    issue = self.jira.issue(patch.issue_id)
+
+    found = False
+    for attachment in issue.fields.attachment:
+      if patch.filename == attachment.filename:
+        patch_file_path = os.path.join(self.patches_root, patch.issue_id, patch.filename)
+
+        issue_dir = os.path.dirname(patch_file_path)
+        if not os.path.exists(issue_dir):
+          os.makedirs(issue_dir)
+          
+        print "Downloading attachment from issue %s to file %s" % (patch.issue_id, patch_file_path)
+        with open(patch_file_path, "w") as file:
+          file.write(attachment.get())
+        found = True
+        break
+    
+    if not found:
+      raise ValueError("Cannot find attachment with name '{name}' for issue {issue}"
+                       .format(name=patch.filename, issue=patch.issue_id))
+    
+      
   def list_attachments(self, issue_id):
     issue = self.jira.issue(issue_id)
 
@@ -21,12 +46,11 @@ class JiraWrapper:
       # to read content use `get` method:
       # print("Content: '{}'".format(attachment.get()))
 
-  def get_latest_attachments_per_branch(self, issue_id):
+  def get_attachments_per_branch(self, issue_id):
     issue = self.jira.issue(issue_id)
     # print "Issue obj: %s" % issue.fields.assignee
     # for property, value in vars(issue.fields.assignee).iteritems():
     #   print property, ": ", value
-
     # displayName : Szilard Nemeth
     # name :  snemeth
     
@@ -35,7 +59,7 @@ class JiraWrapper:
     owner = PatchOwner(owner_name, owner_display_name)
     jira_patches = map(lambda a: self.create_jira_patch_obj(a.filename, owner), issue.fields.attachment)
     
-    # key: branch name, value: JiraPath object
+    # key: branch name, value: list of JiraPatch objects
     patches = {}
     for patch in jira_patches:
       branch = patch.target_branch
@@ -97,4 +121,3 @@ class JiraWrapper:
     if not search_obj or len(search_obj.groups()) != 1:
       raise ValueError("Filename %s seem to does not have separator char after issue ID!".format(filename))
     return search_obj.group(1)
-    
