@@ -27,6 +27,9 @@ class JiraWrapper:
           os.makedirs(issue_dir)
           
         print "Downloading attachment from issue %s to file %s" % (patch.issue_id, patch_file_path)
+        
+        #TODO let JiraPatch object create the path
+        patch.set_patch_file_path(patch_file_path)
         with open(patch_file_path, "w") as file:
           file.write(attachment.get())
         found = True
@@ -45,6 +48,12 @@ class JiraWrapper:
         filename=attachment.filename, size=attachment.size))
       # to read content use `get` method:
       # print("Content: '{}'".format(attachment.get()))
+      
+  def get_status(self, issue_id):
+    issue = self.jira.issue(issue_id)
+    status = issue.fields.status
+    print "Status of %s: %s" % (issue_id, status)
+    return status.name
 
   def get_attachments_per_branch(self, issue_id):
     issue = self.jira.issue(issue_id)

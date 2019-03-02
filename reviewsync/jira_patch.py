@@ -5,6 +5,9 @@ class JiraPatch:
     self.version = version
     self.filename = patch_file
     self.target_branch = target_branch
+    
+  def set_patch_file_path(self, file_path):
+    self.file_path = file_path
 
   def __repr__(self):
     return repr((self.issue_id, self.owner, self.version, self.target_branch, self.filename))

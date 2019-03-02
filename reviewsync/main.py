@@ -32,12 +32,19 @@ def get_args():
   return jira_url, issues
 
 
-def download_latest_patches():
-  all_patches = jira_wrapper.get_attachments_per_branch(i)
+def download_latest_patches(issue_id):
+  status = jira_wrapper.get_status(issue_id)
+  if status == "Resolved":
+    print "Status of jira should not be resolved: %s" % issue_id
+    return []
+  
+  all_patches = jira_wrapper.get_attachments_per_branch(issue_id)
   patches = AttachmentUtils.get_latest_patches_per_branch(all_patches)
   
   for branch, patch in patches.iteritems():
     jira_wrapper.download_attachment(patch)
+
+  return [patch for patch in patches.values()]
 
 
 if __name__ == '__main__':
@@ -53,10 +60,24 @@ if __name__ == '__main__':
 
 
   jira_url, issues = get_args()
-  print "Jira URL: %s" % jira_url
-  print "Issues: %s" % issues
+  print "Jira isssues will be checked: %s" % issues
   patches_root = os.path.join(reviewsync_root, "patches")
   jira_wrapper = JiraWrapper(jira_url, patches_root)
   
-  for i in issues:
-    download_latest_patches()
+  # key: issue ID
+  # value: list of tuples of (patch object, result as bool)
+  results = {}
+  for issue_id in issues:
+    patches = download_latest_patches(issue_id)
+    if len(patches) == 0:
+      print "Patches found for jira issue %s was 0!" % issue_id
+      continue
+    
+    print "Patches: %s" % patches
+
+    results[issue_id] = []
+    for patch in patches:
+      success = git_wrapper.apply_patch(patch)
+      results[patch.issue_id].append((patch, success))
+  
+  print "Overall results: " + str(results)
