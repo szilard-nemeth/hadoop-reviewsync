@@ -38,3 +38,4 @@ if __name__ == '__main__':
   
   for i in issues:
     jira_wrapper.list_attachments(i)
+    jira_wrapper.get_latest_attachments_per_branch(i)
