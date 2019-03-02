@@ -12,8 +12,20 @@ class JiraPatch:
   def __str__(self):
     return self.__class__.__name__ + \
            " { issue_id: " + self.issue_id + \
-           ", owner: " + self.owner + \
+           ", owner: " + str(self.owner) + \
            ", version: " + str(self.version) + \
            ", patch_file: " + str(self.patch_file) + \
            ", target_branch: " + str(self.target_branch) + " }"
-    
+
+class PatchOwner:
+  def __init__(self, name, display_name):
+    self.name = name
+    self.display_name = display_name
+
+  def __repr__(self):
+    return repr((self.name, self.display_name))
+
+  def __str__(self):
+    return self.__class__.__name__ + \
+           " { name: " + self.name + \
+           ", display_name: " + str(self.display_name) + " }"

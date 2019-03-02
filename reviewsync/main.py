@@ -43,6 +43,8 @@ if __name__ == '__main__':
   git_path = os.path.join(home, "gitpython")
   git_wrapper = GitWrapper(git_path)
   git_wrapper.sync_hadoop()
-  # for i in issues:
-  #   jira_wrapper.list_attachments(i)
-  #   jira_wrapper.get_latest_attachments_per_branch(i)
+  
+  
+  for i in issues:
+    jira_wrapper.list_attachments(i)
+    jira_wrapper.get_latest_attachments_per_branch(i)

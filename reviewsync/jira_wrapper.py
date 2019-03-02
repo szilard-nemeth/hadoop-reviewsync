@@ -1,7 +1,8 @@
 from jira import JIRA
 import re
 import logging
-from jira_patch import JiraPatch
+from jira_patch import JiraPatch, PatchOwner
+
 LOG = logging.getLogger(__name__)
 
 DEFAULT_PATCH_EXTENSION = "patch"
@@ -22,7 +23,17 @@ class JiraWrapper:
 
   def get_latest_attachments_per_branch(self, issue_id):
     issue = self.jira.issue(issue_id)
-    jira_patches = map(lambda a: self.create_jira_patch_obj(a.filename), issue.fields.attachment)
+    # print "Issue obj: %s" % issue.fields.assignee
+    # for property, value in vars(issue.fields.assignee).iteritems():
+    #   print property, ": ", value
+
+    # displayName : Szilard Nemeth
+    # name :  snemeth
+    
+    owner_name = issue.fields.assignee.name
+    owner_display_name = issue.fields.assignee.displayName
+    owner = PatchOwner(owner_name, owner_display_name)
+    jira_patches = map(lambda a: self.create_jira_patch_obj(a.filename, owner), issue.fields.attachment)
     
     # key: branch name, value: JiraPath object
     patches = {}
@@ -48,7 +59,7 @@ class JiraWrapper:
     return patches
       
       
-  def create_jira_patch_obj(self, filename):
+  def create_jira_patch_obj(self, filename, owner):
     # YARN-9213.branch3.2.001.patch
     # YARN-9139.branch-3.1.001.patch
     # YARN-9213.003.patch
@@ -62,8 +73,7 @@ class JiraWrapper:
       if len(trunk_search_obj.groups()) == 2:
         issue_id = trunk_search_obj.group(1)
         version = trunk_search_obj.group(2)
-        #TODO owner is hardcoded
-        return JiraPatch(issue_id, "owner", version, "trunk", filename)
+        return JiraPatch(issue_id, owner, version, "trunk", filename)
       else:
         raise ValueError("Filename %s matched for trunk branch pattern, "
                          "but does not have issue ID and version in expected places!".format(filename))
@@ -78,8 +88,7 @@ class JiraWrapper:
         issue_id = search_obj.group(1)
         branch = search_obj.group(2)
         version = search_obj.group(3)
-        #TODO owner is hardcoded
-        return JiraPatch(issue_id, "owner", version, branch, filename)
+        return JiraPatch(issue_id, owner, version, branch, filename)
       else:
         raise ValueError("Filename {} does not match for any pattern!".format(filename))
 
