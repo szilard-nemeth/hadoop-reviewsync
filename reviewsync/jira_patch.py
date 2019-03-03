@@ -1,10 +1,13 @@
 class JiraPatch:
-  def __init__(self, issue_id, owner, version, target_branches, patch_file):
+  def __init__(self, issue_id, owner, version, target_branches, patch_file, applicable):
     self.issue_id = issue_id
     self.owner = owner
+    self.owner_short = owner.name
+    self.owner_display_name = owner.display_name
     self.version = version
     self.filename = patch_file
     self.target_branches = target_branches
+    self.applicable = applicable
     
   def set_patch_file_path(self, file_path):
     self.file_path = file_path

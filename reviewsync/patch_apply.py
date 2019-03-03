@@ -2,6 +2,7 @@ class PatchApply:
   def __init__(self, patch, branch, result):
     self.patch = patch
     self.branch = branch
+    #TODO typecheck PatchStatus
     self.result = result
 
   def __repr__(self):
@@ -12,3 +13,9 @@ class PatchApply:
            " { patch: " + self.patch + \
            ", branch: " + str(self.branch) + \
            ", result: " + str(self.result) + " }"
+
+
+class PatchStatus:
+  APPLIES_CLEANLY = "APPLIES CLEANLY"
+  CONFLICT = "CONFLICT"
+  JIRA_ISSUE_RESOLVED = "JIRA_ISSUE_RESOLVED"

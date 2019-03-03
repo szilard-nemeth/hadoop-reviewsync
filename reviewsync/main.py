@@ -8,6 +8,8 @@ from git_wrapper import GitWrapper
 from os.path import expanduser
 
 from attachment_utils import AttachmentUtils
+from result_printer import ResultPrinter
+from obj_utils import ObjUtils
 
 DEFAULT_BRANCH = "trunk"
 JIRA_URL = "https://issues.apache.org/jira"
@@ -32,21 +34,26 @@ def get_args():
   return args
 
 def download_latest_patches(issue_id, jira_wrapper, branches):
-  status = jira_wrapper.get_status(issue_id)
-  if status == "Resolved":
-    print "Status of jira should not be resolved: %s" % issue_id
-    return []
-  
   patches = jira_wrapper.get_patches_per_branch(issue_id, branches)
   print "ALL PATCHES: " + str(patches)
   
-  downloaded = set()
   for patch in patches:
-    if patch.filename not in downloaded:
+    if patch.applicable:
       jira_wrapper.download_patch_file(patch)
-    downloaded.add(patch.filename)
+    else:
+      print "Skipping download of non-applicable patch: %s" % patch
   
   return patches
+
+def _convert_data_to_result_printer(results):
+  data = []
+  headers = ["Issue", "Owner", "Patch file", "Branch", "Result"]
+  for issue_id, patch_applies in results.iteritems():
+    print "PATCH APPLIES: " + str(patch_applies)
+    for patch_apply in patch_applies:
+      data.append([issue_id, patch.owner_display_name, patch.filename, patch_apply.branch, patch_apply.result])
+      
+  return data, headers
 
 if __name__ == '__main__':
   # print "sys.path is:"
@@ -65,18 +72,20 @@ if __name__ == '__main__':
       args.branches.remove(DEFAULT_BRANCH)
     branches = branches + args.branches
   
-  print "Jira isssues will be checked: %s" % issues
+  print "Jira issues will be checked: %s" % issues
   print "Branches: %s" % branches
 
   git_wrapper = GitWrapper(git_root)
-  git_wrapper.sync_hadoop()
+  #TODO
+  git_wrapper.sync_hadoop(fetch=False)
   git_wrapper.validate_branches(branches)
   
   patches_root = os.path.join(reviewsync_root, "patches")
   jira_wrapper = JiraWrapper(JIRA_URL, DEFAULT_BRANCH, patches_root)
   
-  # key: issue ID
-  # value: list of tuples of (patch object, result as bool)
+  # key: jira issue ID
+  # value: list of PatchApply objects
+  # For non-appliable patches (e.g. jira is already Resolved, patch object is None)
   results = {}
   for issue_id in issues:
     patches = download_latest_patches(issue_id, jira_wrapper, branches)
@@ -86,11 +95,13 @@ if __name__ == '__main__':
     
     print "Patches: %s" % patches
 
-    results[issue_id] = {}
     for patch in patches:
-      patch_apply = git_wrapper.apply_patch(patch)
-      if not results[patch.issue_id]:
+      patch_applies = git_wrapper.apply_patch(patch)
+      if patch.issue_id not in results:
         results[patch.issue_id] = []
-      results[patch.issue_id].append((patch_apply))
-  
+      results[patch.issue_id] += patch_applies
   print "Overall results: " + str(results)
+
+  data, headers = _convert_data_to_result_printer(results)
+  result_printer = ResultPrinter(data, headers)
+  result_printer.print_table()
