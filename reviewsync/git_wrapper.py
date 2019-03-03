@@ -3,6 +3,7 @@ from git import Repo, RemoteProgress, GitCommandError
 import os
 
 from patch_apply import PatchApply, PatchStatus
+from jira_patch import JiraPatch
 
 HADOOP_UPSTREAM_REPO_URL = "https://github.com/apache/hadoop.git"
 BRANCH_PREFIX = "reviewsync"
@@ -42,7 +43,8 @@ class GitWrapper:
       Repo.rev_parse(self.repo, "origin/" + branch)
         
   def apply_patch(self, patch):
-    #TODO typecheck JiraPatch
+    if not isinstance(patch, JiraPatch):
+      raise ValueError('patch must be an instance of JiraPatch!')
     if not self.repo:
       raise ValueError("Repository is not yet synced! Please invoke sync_hadoop method before this method!")
     

@@ -2,7 +2,9 @@ class PatchApply:
   def __init__(self, patch, branch, result):
     self.patch = patch
     self.branch = branch
-    #TODO typecheck PatchStatus
+
+    if not isinstance(result, PatchStatus):
+      raise ValueError('result must be an instance of PatchStatus!')
     self.result = result
 
   def __repr__(self):
