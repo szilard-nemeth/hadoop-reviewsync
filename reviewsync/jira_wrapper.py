@@ -28,7 +28,7 @@ class JiraWrapper:
         if not os.path.exists(issue_dir):
           os.makedirs(issue_dir)
           
-        print "Downloading attachment from issue %s to file %s" % (patch.issue_id, patch_file_path)
+        LOG.debug("Downloading patch from issue %s to file %s", patch.issue_id, patch_file_path)
         
         #TODO let JiraPatch object create the path
         patch.set_patch_file_path(patch_file_path)
@@ -41,7 +41,6 @@ class JiraWrapper:
       raise ValueError("Cannot find attachment with name '{name}' for issue {issue}"
                        .format(name=patch.filename, issue=patch.issue_id))
     
-      
   def list_attachments(self, issue_id):
     issue = self.jira.issue(issue_id)
 
@@ -54,30 +53,25 @@ class JiraWrapper:
   def get_status(self, issue_id):
     issue = self.jira.issue(issue_id)
     status = issue.fields.status
-    print "Status of %s: %s" % (issue_id, status)
+    LOG.debug("Status of issue %s: %s", issue_id, status)
     return status.name
   
   def is_status_resolved(self, issue_id):
     status = self.get_status(issue_id)
     if status == "Resolved":
-      print "Status of jira is 'Resolved': %s" % issue_id
+      LOG.debug("Status of jira is 'Resolved': %s", issue_id)
       return True
     return False
 
   def get_patches_per_branch(self, issue_id, additional_branches):
     issue = self.jira.issue(issue_id)
-    # print "Issue obj: %s" % issue.fields.assignee
-    # for property, value in vars(issue.fields.assignee).iteritems():
-    #   print property, ": ", value
-    # displayName : Szilard Nemeth
-    # name :  snemeth
-    
     owner_name = issue.fields.assignee.name
     owner_display_name = issue.fields.assignee.displayName
     owner = PatchOwner(owner_name, owner_display_name)
 
     applicable = False if self.is_status_resolved(issue_id) else True
     patches = map(lambda a: self.create_jira_patch_obj(a.filename, owner, applicable), issue.fields.attachment)
+    LOG.debug("Found patches from all issues: %s", patches)
 
     # key: branch name, value: list of JiraPatch objects
     branches_to_patches = {}
@@ -92,10 +86,11 @@ class JiraWrapper:
         branches_to_patches[branch] = []
       branches_to_patches[branch].append(patch)
 
-    print "BRANCHES TO PATCHES before: " + str(branches_to_patches)
+    LOG.debug("Found patches from all issues (grouped by branch): %s", branches_to_patches)
+
     # After this call, we have on 1-1 mappings between patch and branch
     branches_to_patches = AttachmentUtils.get_latest_patches_per_branch(branches_to_patches)
-    print "BRANCHES TO PATCHES after: " + str(branches_to_patches)
+    LOG.info("Found patches from all issues (only latest): %s", branches_to_patches)
     
     for branch in additional_branches:
       # If we don't have patch for this branch, use the same patch targeted to the default branch.
@@ -115,22 +110,23 @@ class JiraWrapper:
         patch = branches_to_patches[self.default_branch]
         patch.add_additional_branch(branch)
         branches_to_patches[branch] = patch
-        
-    print "BRANCHES TO PATCHES 2: " + str(branches_to_patches)
+
+    LOG.debug("Found patches from all issues, only latest and after overrides applied: %s", branches_to_patches)
           
-    #Sanity check: trunk patch is present for all patch objects
+    # Sanity check: trunk patch is present for all patch objects
     if self.default_branch not in branches_to_patches:
       raise ValueError("Patch targeted to branch '%s' should be present "
                        "for each patch, however trunk patch is not present for issue %s!", self.default_branch, issue_id)
     
     # As a last step, we can convert the dict to list as all patch object hold the reference to target branches
-    # We can also have duplicates here
+    # We can also have duplicates at this point, the combination of sets and __eq__ method of JiraPatch will sort out dupes
     result = set()
     for branch, patch in branches_to_patches.iteritems():
       result.add(patch)
     
-    return list(result)
-      
+    result = list(result)
+    LOG.info("Found patches from all issues, after all filters applied: %s", result)
+    return result
       
   def create_jira_patch_obj(self, filename, owner, applicable):
     # YARN-9213.branch3.2.001.patch

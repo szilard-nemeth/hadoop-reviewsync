@@ -1,3 +1,4 @@
+import logging
 from git import Repo, RemoteProgress, GitCommandError
 import os
 
@@ -5,6 +6,8 @@ from patch_apply import PatchApply, PatchStatus
 
 HADOOP_UPSTREAM_REPO_URL = "https://github.com/apache/hadoop.git"
 BRANCH_PREFIX = "reviewsync"
+LOG = logging.getLogger(__name__)
+
 
 class GitWrapper:
   def __init__(self, base_path):
@@ -18,18 +21,19 @@ class GitWrapper:
       
   def sync_hadoop(self, fetch=True):
     if not os.path.exists(self.hadoop_repo_path):
-      #Do initial clone
-      print "Cloning Hadoop for the first time, into directory: %s" % (self.hadoop_repo_path)
-      self.repo = Repo.clone_from(HADOOP_UPSTREAM_REPO_URL, self.hadoop_repo_path, progress=ProgressPrinter())
+      # Do initial clone
+      LOG.info("Cloning Hadoop for the first time, into directory: %s", self.hadoop_repo_path)
+      self.repo = Repo.clone_from(HADOOP_UPSTREAM_REPO_URL, self.hadoop_repo_path, progress=ProgressPrinter("clone"))
     else:
       self.repo = Repo(self.hadoop_repo_path)
       origin = self.repo.remote("origin")
       assert origin
       
       if fetch:
-        print "Fetching changes from Hadoop repository (%s) in repo %s" % (HADOOP_UPSTREAM_REPO_URL, self.hadoop_repo_path)
-        for fetch_info in origin.fetch(progress=ProgressPrinter()):
-          print("Updated %s to %s" % (fetch_info.ref, fetch_info.commit))
+        LOG.info("Fetching changes from Hadoop repository (%s) into directory %s", 
+                 HADOOP_UPSTREAM_REPO_URL, self.hadoop_repo_path)
+        for fetch_info in origin.fetch(progress=ProgressPrinter("fetch")):
+          LOG.debug("Updated %s to %s", fetch_info.ref, fetch_info.commit)
           
   def validate_branches(self, branches):
     if not self.repo:
@@ -42,11 +46,8 @@ class GitWrapper:
     if not self.repo:
       raise ValueError("Repository is not yet synced! Please invoke sync_hadoop method before this method!")
     
-    #TODO info log
-    print "Applying patch %s on branches: %s" % (patch.filename, patch.target_branches)
-
-    #TODO debug log
-    print "Applying patch %s" % (patch)
+    LOG.info("Applying patch %s on branches: %s", patch.filename, patch.target_branches)
+    LOG.debug("Applying patch %s", patch)
     
     results = []
     for branch in patch.target_branches:
@@ -56,7 +57,7 @@ class GitWrapper:
 
       if not patch.applicable:
         #TODO store reasons of non-applicability to patchapply object!
-        print "Patch %s is not applicable! Either due to jira is Resolved or some other reasons!" % patch
+        LOG.warn("Patch %s is not applicable! Either due to jira is Resolved or some other reasons!", patch)
         results.append(PatchApply(patch, target_branch, PatchStatus.JIRA_ISSUE_RESOLVED))
         continue
       
@@ -65,30 +66,32 @@ class GitWrapper:
       self.repo.head.reference = patch_branch
       self.repo.head.reset(index=True, working_tree=True)
       try:
-        print "Applying patch %s on branch: %s" % (patch.filename, target_branch)
+        LOG.debug("[%s] Applying patch %s to branch: %s...", patch.issue_id, patch.filename, target_branch)
         status, stdout, stderr = self.repo.git.execute(['git', 'apply', patch.file_path], with_extended_output=True)
         if status == 0:
-          print "Successfully applied patch %s on branch: %s" % (patch.filename, target_branch)
+          LOG.info("[%s] Successfully applied patch %s to branch: %s.", patch.issue_id, patch.filename, target_branch)
+          self.log_git_exec(status, stderr, stdout)
           results.append(PatchApply(patch, target_branch, PatchStatus.APPLIES_CLEANLY))
-          
-        #TODO debug log
-        print "status: " + str(status)
-        print "stdout: " + stdout
-        print "stderr: " + stderr
       except GitCommandError as gce:
-        # print "Exception: " + str(gce)
+        # TODO Collect number of file conflicts to PatchApply object and log it to the final table
         if "patch does not apply" in gce.stderr:
-          #TODO debug log gce.stdout, gce.stderr, gce.cmd, gce.cmdline, gce object
-          print "%s: %s PATCH DOES NOT APPLY to %s" % (patch.issue_id, patch.filename, target_branch)
+          LOG.info("[%s] Patch %s does not apply to %s!" % (patch.issue_id, patch.filename, target_branch))
+          self.log_git_exec(gce.status, gce.stderr, gce.stdout)
           results.append(PatchApply(patch, target_branch, PatchStatus.CONFLICT))
     
     return results
 
-class ProgressPrinter(RemoteProgress):
-  def update(self, op_code, cur_count, max_count=None, message=''):
-    # print(op_code, cur_count, max_count, cur_count / (max_count or 100.0), message or "NO MESSAGE")
-    print "Progress: %s%% (speed: %s)" % (cur_count / (max_count or 100.0) * 100, message or "NO MESSAGE")
+  def log_git_exec(self, status, stderr, stdout):
+    LOG.debug("Status of git command: %s", status)
+    LOG.debug("stdout of git command: %s", stdout)
+    LOG.debug("stderr of git command: %s", stderr)
 
-# class Progress(git.remote.RemoteProgress):
-#   def update(self, op_code, cur_count, max_count=None, message=''):
-#     print 'update(%s, %s, %s, %s)'%(op_code, cur_count, max_count, message)
+
+class ProgressPrinter(RemoteProgress):
+  def __init__(self, operation):
+    super(ProgressPrinter, self).__init__()
+    self.operation = operation
+
+  def update(self, op_code, cur_count, max_count=None, message=''):
+    percentage = cur_count / (max_count or 100.0) * 100
+    LOG.info("Progress of git %s: %s%% (speed: %s)", self.operation, percentage, message or "-")

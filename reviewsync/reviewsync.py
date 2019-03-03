@@ -63,7 +63,6 @@ class ReviewSync:
     LOG.info("Jira issues will be synced: %s", self.issues)
     LOG.info("Branches specified: %s", self.branches)
     
-    # TODO
     self.git_wrapper.sync_hadoop(fetch=True)
     self.git_wrapper.validate_branches(self.branches)
 
@@ -74,17 +73,15 @@ class ReviewSync:
     for issue_id in self.issues:
       patches = self.download_latest_patches(issue_id)
       if len(patches) == 0:
-        print "Patches found for jira issue %s was 0!" % issue_id
+        LOG.warn("No patch found for jira issue %s!", issue_id)
         continue
-
-      print "Patches: %s" % patches
 
       for patch in patches:
         patch_applies = self.git_wrapper.apply_patch(patch)
         if patch.issue_id not in results:
           results[patch.issue_id] = []
         results[patch.issue_id] += patch_applies
-    print "Overall results: " + str(results)
+    LOG.info("List of Patch applies: %s", results)
     return results
 
   @staticmethod
@@ -108,7 +105,7 @@ class ReviewSync:
       ch.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter(
-      '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+      '%(asctime)s - %(levelname)s - %(name)s - %(message)s')
     fh.setFormatter(formatter)
     ch.setFormatter(formatter)
     # add the handlers to the logger
@@ -139,13 +136,11 @@ class ReviewSync:
 
   def download_latest_patches(self, issue_id):
     patches = self.jira_wrapper.get_patches_per_branch(issue_id, self.branches)
-    print "ALL PATCHES: " + str(patches)
-
     for patch in patches:
       if patch.applicable:
         self.jira_wrapper.download_patch_file(patch)
       else:
-        print "Skipping download of non-applicable patch: %s" % patch
+        LOG.info("Skipping download of non-applicable patch: %s", patch)
 
     return patches
 
@@ -159,7 +154,6 @@ class ReviewSync:
     data = []
     headers = ["Issue", "Owner", "Patch file", "Branch", "Result"]
     for issue_id, patch_applies in results.iteritems():
-      print "PATCH APPLIES: " + str(patch_applies)
       for patch_apply in patch_applies:
         patch = patch_apply.patch
         data.append([issue_id, patch.owner_display_name, patch.filename,
@@ -169,8 +163,6 @@ class ReviewSync:
 
 
 if __name__ == '__main__':
-  # print "sys.path is:"
-  # print '\n'.join(sys.path)
   # Parse args
   args = ReviewSync.parse_args()
   reviewsync = ReviewSync(args)
