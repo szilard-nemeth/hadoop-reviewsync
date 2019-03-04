@@ -3,8 +3,8 @@ class PatchApply:
     self.patch = patch
     self.branch = branch
 
-    if not isinstance(result, PatchStatus):
-      raise ValueError('result must be an instance of PatchStatus!')
+    if result not in PatchStatus.ALLOWED_VALUES:
+      raise ValueError('result must be a value found in PatchStatus!')
     self.result = result
 
   def __repr__(self):
@@ -21,3 +21,5 @@ class PatchStatus:
   APPLIES_CLEANLY = "APPLIES CLEANLY"
   CONFLICT = "CONFLICT"
   JIRA_ISSUE_RESOLVED = "JIRA_ISSUE_RESOLVED"
+  
+  ALLOWED_VALUES = {APPLIES_CLEANLY, CONFLICT, JIRA_ISSUE_RESOLVED}
