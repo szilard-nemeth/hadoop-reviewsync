@@ -1,3 +1,6 @@
+from string_utils import StringUtils
+
+
 class JiraPatch:
   def __init__(self, issue_id, owner, version, target_branches, patch_file, applicable):
     self.issue_id = issue_id
@@ -46,6 +49,11 @@ class PatchOwner:
     return repr((self.name, self.display_name))
 
   def __str__(self):
+    # TODO understand unicode conversion issue in more details
+    # return self.__class__.__name__ + \
+    #        " { name: " + self.name + \
+    #        ", display_name: " + str(self.display_name) + " }"
+    # UnicodeEncodeError: 'ascii' codec can't encode character u'\xe1' in position 7: ordinal not in range(128)
     return self.__class__.__name__ + \
            " { name: " + self.name + \
-           ", display_name: " + str(self.display_name) + " }"
+           ", display_name: " + StringUtils.replace_special_chars(self.display_name) + " }"
