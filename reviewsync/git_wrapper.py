@@ -72,28 +72,39 @@ class GitWrapper:
         patch_branch = self.repo.create_head(patch_branch_name, target_branch)
   
       self.repo.head.reference = patch_branch
-      self.repo.head.reset(index=True, working_tree=True)
+      self.cleanup()
       try:
         LOG.debug("[%s] Applying patch %s to branch: %s...", patch.issue_id, patch.filename, target_branch)
         status, stdout, stderr = self.repo.git.execute(['git', 'apply', patch.file_path], with_extended_output=True)
+        self.log_git_exec(status, stderr, stdout)
         if status == 0:
           LOG.info("[%s] Successfully applied patch %s to branch: %s.", patch.issue_id, patch.filename, target_branch)
-          self.log_git_exec(status, stderr, stdout)
           results.append(PatchApply(patch, target_branch, PatchStatus.APPLIES_CLEANLY))
+        else:
+          LOG.error("Something bad happened")
+          self.log_git_exec(status, stderr, stdout, level=logging.INFO)
       except GitCommandError as gce:
         # TODO Collect number of file conflicts to PatchApply object and log it to the final table
         if "patch does not apply" in gce.stderr:
           LOG.info("[%s] Patch %s does not apply to %s!" % (patch.issue_id, patch.filename, target_branch))
           self.log_git_exec(gce.status, gce.stderr, gce.stdout)
           results.append(PatchApply(patch, target_branch, PatchStatus.CONFLICT))
-    
+
     return results
 
-  def log_git_exec(self, status, stderr, stdout):
-    LOG.debug("Status of git command: %s", status)
-    LOG.debug("stdout of git command: %s", stdout)
-    LOG.debug("stderr of git command: %s", stderr)
+  def cleanup(self):
+    self.repo.head.reset(index=True, working_tree=True)
+    self.repo.git.clean('-xdfq')
 
+  def log_git_exec(self, status, stderr, stdout, level=logging.DEBUG):
+    if level == logging.DEBUG:
+      LOG.debug("Status of git command: %s", status)
+      LOG.debug("stdout of git command: %s", stdout)
+      LOG.debug("stderr of git command: %s", stderr)
+    else:
+      LOG.info("Status of git command: %s", status)
+      LOG.info("stdout of git command: %s", stdout)
+      LOG.info("stderr of git command: %s", stderr)
 
 class ProgressPrinter(RemoteProgress):
   def __init__(self, operation):
