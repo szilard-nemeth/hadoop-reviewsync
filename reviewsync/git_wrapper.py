@@ -59,11 +59,17 @@ class GitWrapper:
 
       if not patch.applicable:
         #TODO store reasons of non-applicability to patchapply object!
-        LOG.warn("Patch %s is not applicable! Either due to jira is Resolved or some other reasons!", patch)
+        LOG.warn("Patch %s is not applicable! Either due to jira is Resolved or for some other reason!", patch)
         results.append(PatchApply(patch, target_branch, PatchStatus.JIRA_ISSUE_RESOLVED))
         continue
       
-      patch_branch = self.repo.create_head(patch_branch_name, target_branch)
+      # If branch already exists, move it to target_branch
+      if patch_branch_name in self.repo.heads:
+        LOG.info("Patch branch already exists with name %s, moving branch pointer to %s", patch_branch_name, target_branch)
+        patch_branch = self.repo.heads[patch_branch_name]
+        patch_branch.set_commit(target_branch)
+      else:
+        patch_branch = self.repo.create_head(patch_branch_name, target_branch)
   
       self.repo.head.reference = patch_branch
       self.repo.head.reset(index=True, working_tree=True)
@@ -96,4 +102,4 @@ class ProgressPrinter(RemoteProgress):
 
   def update(self, op_code, cur_count, max_count=None, message=''):
     percentage = cur_count / (max_count or 100.0) * 100
-    LOG.info("Progress of git %s: %s%% (speed: %s)", self.operation, percentage, message or "-")
+    LOG.debug("Progress of git %s: %s%% (speed: %s)", self.operation, percentage, message or "-")
