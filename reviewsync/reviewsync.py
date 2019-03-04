@@ -5,6 +5,7 @@ import sys
 import datetime
 import logging
 import os
+from collections import OrderedDict
 from jira_wrapper import JiraWrapper, JiraFetchMode
 from git_wrapper import GitWrapper
 from gsheet_wrapper import GSheetWrapper, GSheetOptions
@@ -89,8 +90,7 @@ class ReviewSync:
     # value: list of PatchApply objects
     # For non-applicable patches (e.g. jira is already Resolved, patch object is None)
     
-    #TODO use OrderedDict here as results
-    results = {}
+    results = OrderedDict()
     for issue_id in issues:
       patches = self.download_latest_patches(issue_id)
       if len(patches) == 0:
