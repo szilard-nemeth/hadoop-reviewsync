@@ -1,3 +1,5 @@
 jira
 gitpython
 tabulate
+gspread
+oauth2client

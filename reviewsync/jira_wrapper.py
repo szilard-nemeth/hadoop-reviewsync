@@ -12,7 +12,7 @@ DEFAULT_PATCH_EXTENSION = "patch"
 class JiraWrapper:
   def __init__(self, jira_url, default_branch, patches_root):
     options = { 'server': jira_url}
-    self.jira = JIRA(options)
+    self.jira = JIRA(options, timeout=3)
     self.default_branch = default_branch
     self.patches_root = patches_root
     
@@ -70,8 +70,9 @@ class JiraWrapper:
     owner = PatchOwner(owner_name, owner_display_name)
 
     applicable = False if self.is_status_resolved(issue_id) else True
-    patches = map(lambda a: self.create_jira_patch_obj(a.filename, owner, applicable), issue.fields.attachment)
-    LOG.debug("Found patches from all issues: %s", patches)
+    patches = map(lambda a: self.create_jira_patch_obj(issue_id, a.filename, owner, applicable), issue.fields.attachment)
+    patches = [p for p in patches if p is not None]
+    LOG.debug("[%s] Found patches (all): %s", issue_id, patches)
 
     # key: branch name, value: list of JiraPatch objects
     branches_to_patches = {}
@@ -86,18 +87,25 @@ class JiraWrapper:
         branches_to_patches[branch] = []
       branches_to_patches[branch].append(patch)
 
-    LOG.debug("Found patches from all issues (grouped by branch): %s", branches_to_patches)
+    LOG.debug("[%s] Found patches (grouped by branch): %s", issue_id, branches_to_patches)
 
     # After this call, we have on 1-1 mappings between patch and branch
-    branches_to_patches = AttachmentUtils.get_latest_patches_per_branch(branches_to_patches)
-    LOG.info("Found patches from all issues (only latest): %s", branches_to_patches)
+    branch_to_patch_dict = AttachmentUtils.get_latest_patches_per_branch(branches_to_patches)
+    LOG.info("[%s] Found patches (only latest by filename): %s", issue_id, branches_to_patches)
+
+    # Sanity check: self.default_branch patch is present for the Jira issue
+    if self.default_branch not in branch_to_patch_dict:
+      LOG.error("[%s] Patch targeted to default branch (name: '%s') should be present for each issue, "
+                "however trunk patch is not present for this issue!",
+                issue_id, self.default_branch)
+      return []
     
     for branch in additional_branches:
       # If we don't have patch for this branch, use the same patch targeted to the default branch.
-      # Otherwise, keeping the one that explicitly targets the branch is a must!
-      # In other words: We should make an override: patches explicitly targeted to 
-      # another branches should have precedence over trunk targeted to specified branches.
-      # Example: 
+      # Otherwise, keeping the one that explicitly targets the branch is in precedence.
+      # In other words, we should make an override: A Patch explicitly targeted to
+      # a branch should have precedence over a patch originally targeted to the default branch.
+      # Example:
       # Branch: branch-3.2
       # Trunk patch: 002.patch
       # Result: branches_to_patches = { 'trunk': '002.patch', 'branch-3.2': '002.patch' }
@@ -106,63 +114,69 @@ class JiraWrapper:
       # Patches: 002.patch, branch-3.2.001.patch
       # Branches: trunk, branch-3.2
       # Result: 002.patch --> trunk, branch-3.2.001.patch --> branch-3.2 [[002.patch does not target branch-3.2]]
-      if branch not in branches_to_patches:
-        patch = branches_to_patches[self.default_branch]
+      if branch not in branch_to_patch_dict:
+        patch = branch_to_patch_dict[self.default_branch]
         patch.add_additional_branch(branch)
-        branches_to_patches[branch] = patch
+        branch_to_patch_dict[branch] = patch
 
     LOG.debug("Found patches from all issues, only latest and after overrides applied: %s", branches_to_patches)
           
-    # Sanity check: trunk patch is present for all patch objects
-    if self.default_branch not in branches_to_patches:
-      raise ValueError("Patch targeted to branch '%s' should be present "
-                       "for each patch, however trunk patch is not present for issue %s!", self.default_branch, issue_id)
-    
-    # As a last step, we can convert the dict to list as all patch object hold the reference to target branches
-    # We can also have duplicates at this point, the combination of sets and __eq__ method of JiraPatch will sort out dupes
+    # We could also have duplicates at this point, 
+    # the combination of sets and __eq__ method of JiraPatch will sort out duplicates
     result = set()
-    for branch, patch in branches_to_patches.iteritems():
+    for branch, patch in branch_to_patch_dict.iteritems():
       result.add(patch)
     
     result = list(result)
     LOG.info("Found patches from all issues, after all filters applied: %s", result)
     return result
       
-  def create_jira_patch_obj(self, filename, owner, applicable):
+  def create_jira_patch_obj(self, issue_id, filename, owner, applicable):
     # YARN-9213.branch3.2.001.patch
     # YARN-9139.branch-3.1.001.patch
     # YARN-9213.003.patch
     sep_char = self._get_separator_char(filename)
+    if not sep_char:
+      LOG.error("[%s] Filename %s does not seem to have separator character after jira issue ID!", issue_id, filename)
+      return None
     
     trunk_search_obj = re.search(r'(\w+-\d+)' + re.escape(sep_char) + '(\d+)\.'
                                  + DEFAULT_PATCH_EXTENSION + '$', filename)
     
+    #TODO sanity check issue_id and parsed_issue_id is the same!
+    
     # First, let's suppose that we have a patch file targeted to trunk
     if trunk_search_obj:
       if len(trunk_search_obj.groups()) == 2:
-        issue_id = trunk_search_obj.group(1)
-        version = trunk_search_obj.group(2)
-        return JiraPatch(issue_id, owner, version, [self.default_branch], filename, applicable)
+        parsed_issue_id = trunk_search_obj.group(1)
+        parsed_version = trunk_search_obj.group(2)
+        return JiraPatch(parsed_issue_id, owner, parsed_version, [self.default_branch], filename, applicable)
       else:
         raise ValueError("Filename %s matched for trunk branch pattern, "
-                         "but does not have issue ID and version in expected places!".format(filename))
+                         "but does not have issue ID and version in expected position!".format(filename))
     else:
       # Trunk filename pattern did not match.
       # Try to match against pattern that has other branch than trunk.
       # Example: YARN-9213.branch-3.2.004.patch
-      search_obj = re.search(r'(\w+-\d+)' + re.escape(sep_char) + 
-                             '([a-zA-Z\-0-9.]+)' + re.escape(sep_char) + 
+      search_obj = re.search(r'(\w+-\d+)' + re.escape(sep_char) +
+                             '([a-zA-Z\-0-9.]+)' + re.escape(sep_char) +
                              '(\d+)\.' + DEFAULT_PATCH_EXTENSION + '$', filename)
       if search_obj and len(search_obj.groups()) == 3:
-        issue_id = search_obj.group(1)
-        branch = search_obj.group(2)
-        version = search_obj.group(3)
-        return JiraPatch(issue_id, owner, version, [branch], filename, applicable)
+        parsed_issue_id = search_obj.group(1)
+        parsed_branch = search_obj.group(2)
+        parsed_version = search_obj.group(3)
+        return JiraPatch(parsed_issue_id, owner, parsed_version, [parsed_branch], filename, applicable)
       else:
-        raise ValueError("Filename {} does not match for any pattern!".format(filename))
+        LOG.error("[%s] Filename %s does not match for any patch file name regex pattern!", issue_id, filename)
+        return None
 
   def _get_separator_char(self, filename):
     search_obj = re.search(r'\w+-\d+(.)', filename)
-    if not search_obj or len(search_obj.groups()) != 1:
-      raise ValueError("Filename %s seem to does not have separator char after issue ID!".format(filename))
-    return search_obj.group(1)
+    if search_obj and len(search_obj.groups()) == 1:
+      return search_obj.group(1)
+    return None
+    
+
+class JiraFetchMode:
+  GSHEET = "GSHEET"
+  ISSUES_CMDLINE = "ISSUES_CMDLINE"
