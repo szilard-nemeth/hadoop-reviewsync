@@ -1,22 +1,40 @@
 from string_utils import StringUtils
+import logging
 
+LOG = logging.getLogger(__name__)
 
 class JiraPatch:
-  def __init__(self, issue_id, owner, version, target_branches, patch_file, applicable):
+  def __init__(self, issue_id, owner, version, target_branch, patch_file, applicability):
     self.issue_id = issue_id
     self.owner = owner
     self.owner_short = owner.name
     self.owner_display_name = owner.display_name
     self.version = version
     self.filename = patch_file
-    self.target_branches = target_branches
-    self.applicable = applicable
+    self.target_branches = [target_branch]
+    self.applicability = {target_branch: applicability}
     
   def set_patch_file_path(self, file_path):
     self.file_path = file_path
     
-  def add_additional_branch(self, branch):
+  def add_additional_branch(self, branch, applicability):
     self.target_branches.append(branch)
+    self.applicability[branch] = applicability
+
+  def is_applicable_for_branch(self, branch):
+    if branch in self.applicability:
+      return self.applicability[branch].applicable
+    return False
+  
+  def get_reason_for_non_applicability(self, branch):
+    if branch in self.applicability:
+      return self.applicability[branch].reason
+    return "Unknown"
+
+  def is_applicable(self):
+    applicabilities = set([True if a.applicable else False for a in self.applicability.values()])
+    LOG.debug("Patch applicabilities: %s for patch %s", applicabilities, self)
+    return True in applicabilities
 
   def __repr__(self):
     return repr((self.issue_id, self.owner, self.version, self.target_branches, self.filename))

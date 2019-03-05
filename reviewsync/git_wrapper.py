@@ -57,10 +57,9 @@ class GitWrapper:
         .format(prefix=BRANCH_PREFIX, branch=branch, filename=patch.filename)
       target_branch = "origin/" + branch
 
-      if not patch.applicable:
-        #TODO store reasons of non-applicability to patchapply object!
-        LOG.warn("Patch %s is not applicable! Either due to jira is Resolved or for some other reason!", patch)
-        results.append(PatchApply(patch, target_branch, PatchStatus.JIRA_ISSUE_RESOLVED))
+      if not patch.is_applicable_for_branch(branch):
+        LOG.warn("Patch %s is not applicable on branch %s! Reason: %s!", patch, branch, patch.get_reason_for_non_applicability(branch))
+        results.append(PatchApply(patch, target_branch, PatchStatus.PATCH_ALREADY_COMMITTED))
         continue
       
       # If branch already exists, move it to target_branch
@@ -105,6 +104,58 @@ class GitWrapper:
       LOG.info("Status of git command: %s", status)
       LOG.info("stdout of git command: %s", stdout)
       LOG.info("stderr of git command: %s", stderr)
+      
+  def get_remote_branches_committed_for_issue(self, issue_id):
+    commit_hashes = self._get_commit_hashes(issue_id)
+    remote_branches = self._get_remote_branches_for_commits(commit_hashes)
+    return set(remote_branches)
+
+  def _get_commit_hashes(self, issue_id):
+    status, stdout, stderr = self.repo.git.execute(['git', 'log', "--oneline", "--all", "--grep", issue_id],
+                                                   with_extended_output=True)
+    self.log_git_exec(status, stderr, stdout)
+    if status != 0:
+      raise ValueError("[%s] Failed to run git log command that finds a Jira issue!")
+    if stdout:
+      commit_hashes = []
+      for line in stdout.splitlines():
+        line_parts = line.split(" ")
+        if len(line_parts) > 0:
+          commit_hashes.append(line_parts[0])
+      return commit_hashes
+    
+    return []
+
+  def _get_remote_branches_for_commits(self, commits, strip_remote=True):
+    if not commits:
+      raise ValueError("List of commits should not be None!")
+    
+    remote_branches = []
+    for commit in commits:
+      status, stdout, stderr = self.repo.git.execute(['git', 'branch', "-r", "--contains", commit], with_extended_output=True)
+      self.log_git_exec(status, stderr, stdout)
+      if status != 0:
+        raise ValueError("[%s] Failed to run git branch command that finds remote branches for commit!")
+      if stdout:
+        for r_branch in stdout.splitlines():
+          if len(r_branch) > 0:
+            stripped_rbranch = r_branch.lstrip()
+
+            if strip_remote:
+              # Strip off leading "<remote>/" part, if any
+              split_parts = stripped_rbranch.rsplit("/", 1)
+              
+              if len(split_parts) == 2:
+                l_branch = split_parts[1]
+              else:
+                l_branch = split_parts
+              remote_branches.append(l_branch)
+            else:
+              remote_branches.append(stripped_rbranch)
+      else:
+        return []
+    return remote_branches
+
 
 class ProgressPrinter(RemoteProgress):
   def __init__(self, operation):

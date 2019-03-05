@@ -20,6 +20,22 @@ class PatchApply:
 class PatchStatus:
   APPLIES_CLEANLY = "APPLIES CLEANLY"
   CONFLICT = "CONFLICT"
-  JIRA_ISSUE_RESOLVED = "JIRA_ISSUE_RESOLVED"
-  
-  ALLOWED_VALUES = {APPLIES_CLEANLY, CONFLICT, JIRA_ISSUE_RESOLVED}
+  PATCH_ALREADY_COMMITTED = "PATCH_ALREADY_COMMITTED"
+
+  ALLOWED_VALUES = {APPLIES_CLEANLY, CONFLICT, PATCH_ALREADY_COMMITTED}
+
+
+class PatchApplicability:
+  def __init__(self, applicable, reason=None):
+    self.applicable = applicable
+    self.reason = reason
+    if not applicable and not reason:
+      raise ValueError("Reason should be specified is Patch is not applicable!")
+
+  def __repr__(self):
+    return repr((self.applicable, self.reason))
+
+  def __str__(self):
+    return self.__class__.__name__ + \
+           " { applicable: " + str(self.applicable) + \
+           ", reason: " + self.reason + " }"

@@ -4,6 +4,7 @@ import os
 import logging
 from jira_patch import JiraPatch, PatchOwner
 from attachment_utils import AttachmentUtils
+from patch_apply import PatchApplicability
 
 LOG = logging.getLogger(__name__)
 
@@ -63,14 +64,14 @@ class JiraWrapper:
       return True
     return False
 
-  def get_patches_per_branch(self, issue_id, additional_branches):
+  def get_patches_per_branch(self, issue_id, additional_branches, committed_on_branches):
     issue = self.jira.issue(issue_id)
     owner_name = issue.fields.assignee.name
     owner_display_name = issue.fields.assignee.displayName
     owner = PatchOwner(owner_name, owner_display_name)
 
-    applicable = False if self.is_status_resolved(issue_id) else True
-    patches = map(lambda a: self.create_jira_patch_obj(issue_id, a.filename, owner, applicable), issue.fields.attachment)
+    # applicable = False if self.is_status_resolved(issue_id) else True
+    patches = map(lambda a: self.create_jira_patch_obj(issue_id, a.filename, owner, committed_on_branches), issue.fields.attachment)
     patches = [p for p in patches if p is not None]
     LOG.debug("[%s] Found patches (all): %s", issue_id, patches)
 
@@ -114,9 +115,13 @@ class JiraWrapper:
       # Patches: 002.patch, branch-3.2.001.patch
       # Branches: trunk, branch-3.2
       # Result: 002.patch --> trunk, branch-3.2.001.patch --> branch-3.2 [[002.patch does not target branch-3.2]]
-      if branch not in branch_to_patch_dict:
+      branch_required = branch not in committed_on_branches
+      
+      if not branch_required:
+        LOG.info("[%s] Patch should be targeted to additional branch %s, but it is already committed on that branch!", issue_id, branch)
+      if branch not in branch_to_patch_dict and branch_required:
         patch = branch_to_patch_dict[self.default_branch]
-        patch.add_additional_branch(branch)
+        patch.add_additional_branch(branch, PatchApplicability(True))
         branch_to_patch_dict[branch] = patch
 
     LOG.debug("Found patches from all issues, only latest and after overrides applied: %s", branches_to_patches)
@@ -131,7 +136,7 @@ class JiraWrapper:
     LOG.info("Found patches from all issues, after all filters applied: %s", result)
     return result
       
-  def create_jira_patch_obj(self, issue_id, filename, owner, applicable):
+  def create_jira_patch_obj(self, issue_id, filename, owner, committed_on_branches):
     # YARN-9213.branch3.2.001.patch
     # YARN-9139.branch-3.1.001.patch
     # YARN-9213.003.patch
@@ -150,7 +155,12 @@ class JiraWrapper:
       if len(trunk_search_obj.groups()) == 2:
         parsed_issue_id = trunk_search_obj.group(1)
         parsed_version = trunk_search_obj.group(2)
-        return JiraPatch(parsed_issue_id, owner, parsed_version, [self.default_branch], filename, applicable)
+
+        if self.default_branch not in committed_on_branches:
+          applicability = PatchApplicability(True)
+        else:
+          applicability = PatchApplicability(False, "Patch already committed on {}".format(self.default_branch))
+        return JiraPatch(parsed_issue_id, owner, parsed_version, self.default_branch, filename, applicability)
       else:
         raise ValueError("Filename %s matched for trunk branch pattern, "
                          "but does not have issue ID and version in expected position!".format(filename))
@@ -165,7 +175,12 @@ class JiraWrapper:
         parsed_issue_id = search_obj.group(1)
         parsed_branch = search_obj.group(2)
         parsed_version = search_obj.group(3)
-        return JiraPatch(parsed_issue_id, owner, parsed_version, [parsed_branch], filename, applicable)
+
+        if parsed_branch not in committed_on_branches:
+          applicability = PatchApplicability(True)
+        else:
+          applicability = PatchApplicability(False, "Patch already committed on {}".format(parsed_branch))
+        return JiraPatch(parsed_issue_id, owner, parsed_version, parsed_branch, filename, applicability)
       else:
         LOG.error("[%s] Filename %s does not match for any patch file name regex pattern!", issue_id, filename)
         return None

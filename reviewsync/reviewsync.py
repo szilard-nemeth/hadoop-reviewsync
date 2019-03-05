@@ -92,7 +92,9 @@ class ReviewSync:
     
     results = OrderedDict()
     for issue_id in issues:
-      patches = self.download_latest_patches(issue_id)
+      committed_on_branches = self.git_wrapper.get_remote_branches_committed_for_issue(issue_id)
+      LOG.info("Issue %s is committed on branches: %s", issue_id, committed_on_branches)
+      patches = self.download_latest_patches(issue_id, committed_on_branches)
       if len(patches) == 0:
         LOG.warn("No patch found for Jira issue %s!", issue_id)
         continue
@@ -212,10 +214,11 @@ class ReviewSync:
     
     return args
 
-  def download_latest_patches(self, issue_id):
-    patches = self.jira_wrapper.get_patches_per_branch(issue_id, self.branches)
+  def download_latest_patches(self, issue_id, committed_on_branches):
+    patches = self.jira_wrapper.get_patches_per_branch(issue_id, self.branches, committed_on_branches)
     for patch in patches:
-      if patch.applicable:
+      if patch.is_applicable():
+        #TODO possible optimization: Just download required files based on branch applicability
         self.jira_wrapper.download_patch_file(patch)
       else:
         LOG.info("Skipping download of non-applicable patch: %s", patch)
