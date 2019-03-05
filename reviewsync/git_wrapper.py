@@ -127,7 +127,7 @@ class GitWrapper:
     return []
 
   def _get_remote_branches_for_commits(self, commits, strip_remote=True):
-    if not commits:
+    if commits is None:
       raise ValueError("List of commits should not be None!")
     
     remote_branches = []
