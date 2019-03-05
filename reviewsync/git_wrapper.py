@@ -89,7 +89,7 @@ class GitWrapper:
           self.log_git_exec(gce.status, gce.stderr, gce.stdout)
           
           conflicts = GitUtils.get_number_of_conflicts_from_str(gce.stderr)
-          results.append(PatchApply(patch, target_branch, PatchStatus.CONFLICT, conflicts=conflicts))
+          results.append(PatchApply(patch, target_branch, PatchStatus.CONFLICT, conflicts=conflicts, conflict_details=gce.stderr))
 
     return results
 
