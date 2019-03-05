@@ -9,6 +9,7 @@ from pprint import pprint, pformat, PrettyPrinter
 SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 LOG = logging.getLogger(__name__)
 
+
 class GSheetOptions:
   def __init__(self, client_secret, spreadsheet, worksheet, jira_column, update_date_column=None, status_column=None):
     self.client_secret = client_secret
@@ -17,12 +18,24 @@ class GSheetOptions:
     self.jira_column = jira_column
     self.update_date_column = update_date_column
     self.status_column = status_column
-    
+
     if self.update_date_column:
       self.do_update_date = True
     if self.status_column:
       self.do_update_status = True
-      
+
+  def __repr__(self):
+    return repr((self.client_secret, self.spreadsheet, self.worksheet, self.jira_column, self.update_date_column, self.status_column))
+
+  def __str__(self):
+    return self.__class__.__name__ + \
+           " { spreadsheet: " + self.spreadsheet + \
+           ", worksheet: " + str(self.worksheet) + \
+           ", jira_column: " + self.jira_column + \
+           ", update_date_column: " + self.update_date_column + \
+           ", status_column: " + str(self.status_column) + " }"
+
+
 class CellUpdateForIssue:
   def __init__(self, issue, update_date_cell, status_cell):
     self.issue = issue
@@ -37,23 +50,23 @@ class CellUpdateForIssue:
            " { issue: " + self.issue + \
            ", update_date_cell: " + str(self.update_date_cell) + \
            ", status_cell: " + str(self.status_cell) + " }"
-    
+
 
 class GSheetWrapper:
   def __init__(self, options):
     if not isinstance(options, GSheetOptions):
       raise ValueError('options must be an instance of GSheetOptions!')
-    
-    #TODO print options on debug level
+
+    LOG.debug("GSheetWrapper options: %s", str(options))
     self.options = options
-    
+
     if not options.client_secret:
       raise ValueError("Client secret should be specified!")
 
     self.creds = ServiceAccountCredentials.from_json_keyfile_name(options.client_secret, SCOPE)
     self.client = gspread.authorize(self.creds)
     self.issue_to_cellupdate = {}
-  
+
   def fetch(self):
     try:
       sheet = self.client.open(self.options.spreadsheet).worksheet(self.options.worksheet)
@@ -85,29 +98,30 @@ class GSheetWrapper:
                          "received data! First row of data: {}".format(jira_col, row0))
 
     issues = []
-    
+
     # 1 because of 0-based indexing (rows are 1-based)
     # 2 because of header row is the 1st row
     idx_correction_row = 2
-    
+
     # 1 because of 0-based col indexing from header
     idx_correction_col = 1
     for idx, row in enumerate(rows):
       issue = row[jira_col]
       issues.append(issue)
-      
+
       update_date_cell_id, status_cell_id = None, None
       if self.options.do_update_date:
         update_date_cell_id = rowcol_to_a1(idx + idx_correction_row, update_date_col_idx + idx_correction_col)
       if self.options.do_update_status:
         status_cell_id = rowcol_to_a1(idx + idx_correction_row, status_col_idx + idx_correction_col)
-        
+
       # If update is required for any cell, we need to store a CellUpdateForIssue object, otherwise don't store it
       if update_date_cell_id or status_cell_id:
         self.issue_to_cellupdate[issue] = CellUpdateForIssue(issue, update_date_cell_id, status_cell_id)
 
     LOG.debug("Issue to CellUpdate mappings: %s", self.issue_to_cellupdate)
     LOG.debug("Found Jira issue from GSheet: %s", issues)
+    
     return issues
 
   def find_column_idx_in_header(self, header, column, type_of_column):
@@ -123,7 +137,7 @@ class GSheetWrapper:
     if column_idx > -1:
       LOG.debug("%s column was found with index: %d", type_of_column, column_idx)
     return column_idx
-    
+
   def update_issue_with_results(self, issue, date_str, status):
     if issue not in self.issue_to_cellupdate:
       LOG.info("No cell update will be performed for issue %s", issue)
