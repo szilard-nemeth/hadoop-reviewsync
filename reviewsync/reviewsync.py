@@ -307,4 +307,5 @@ if __name__ == '__main__':
   if results:
     reviewsync.print_results_table(results)
     if reviewsync.issue_fetch_mode == JiraFetchMode.GSHEET:
+      LOG.info("Updating GSheet with results...")
       reviewsync.update_gsheet(results)

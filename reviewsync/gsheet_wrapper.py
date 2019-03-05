@@ -122,6 +122,7 @@ class GSheetWrapper:
     LOG.debug("Issue to CellUpdate mappings: %s", self.issue_to_cellupdate)
     LOG.debug("Found Jira issue from GSheet: %s", issues)
     
+    self.sheet = sheet
     return issues
 
   def find_column_idx_in_header(self, header, column, type_of_column):
@@ -139,10 +140,19 @@ class GSheetWrapper:
     return column_idx
 
   def update_issue_with_results(self, issue, date_str, status):
+    if not self.sheet:
+      raise ValueError("Sheet data is not yet fetched! Please invoke 'fetch' method first!")
+    
     if issue not in self.issue_to_cellupdate:
       LOG.info("No cell update will be performed for issue %s", issue)
       return
 
-    cell_update = self.issue_to_cellupdate[issue]
-    LOG.info("Would update issue: %s, date: %s, status: %s, cell date: %s, cell status: %s",
-             issue, date_str, status, cell_update.update_date_cell, cell_update.status_cell)
+    cu = self.issue_to_cellupdate[issue]
+    if self.options.do_update_date:
+      LOG.info("[%s] Updating GSheet cell '%s' with value: '%s' (update date)", issue, cu.update_date_cell, date_str)
+      self.sheet.update_acell(cu.update_date_cell, date_str)
+    
+    if self.options.do_update_status:
+      LOG.info("[%s] Updating GSheet cell '%s' with value: '%s' (overall status)", issue, cu.status_cell, status)
+      self.sheet.update_acell(cu.status_cell, status)
+    
