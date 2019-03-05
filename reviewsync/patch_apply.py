@@ -20,15 +20,16 @@ class PatchApply:
     self.conflicts = conflicts
     self.conflict_details = conflict_details
 
-  # TODO fix repr / str
   def __repr__(self):
-    return repr((self.patch, self.branch, self.result))
+    return repr((self.patch, self.branch, self.result, self.conflicts, self.conflict_details))
 
   def __str__(self):
     return self.__class__.__name__ + \
            " { patch: " + self.patch + \
            ", branch: " + str(self.branch) + \
-           ", result: " + str(self.result) + " }"
+           ", result: " + str(self.result) + \
+           ", conflicts: " + str(self.conflicts) + \
+           ", conflict_details: " + str(self.conflict_details) + " }"
 
 
 class PatchStatus:
