@@ -2,7 +2,7 @@ from git_utils import GitUtils
 
 
 class PatchApply:
-  def __init__(self, patch, branch, result):
+  def __init__(self, patch, branch, result, conflicts=0):
     self.patch = patch
     self.branch = branch
     local_branch = GitUtils.convert_remote_branch_name_to_local(branch)
@@ -10,7 +10,12 @@ class PatchApply:
 
     if result not in PatchStatus.ALLOWED_VALUES:
       raise ValueError('result must be a value found in PatchStatus!')
+    
+    if result != PatchStatus.CONFLICT and conflicts > 0:
+      raise ValueError("Number of conflicts should be specified only if value of result is 'PatchStatus.CONFLICT'!")
+    
     self.result = result
+    self.conflicts = conflicts
 
   def __repr__(self):
     return repr((self.patch, self.branch, self.result))

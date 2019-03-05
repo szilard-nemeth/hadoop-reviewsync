@@ -1,3 +1,7 @@
+import logging
+
+LOG = logging.getLogger(__name__)
+
 class GitUtils:
   def __init__(self):
     pass
@@ -15,3 +19,10 @@ class GitUtils:
       l_branch = split_parts
 
     return l_branch
+  
+  @classmethod
+  def get_number_of_conflicts_from_str(cls, str):
+    conflicts = str.count("patch failed: ")
+    LOG.debug("Number of conflicts: %s", conflicts)
+    return conflicts
+    

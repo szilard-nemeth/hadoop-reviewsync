@@ -84,11 +84,12 @@ class GitWrapper:
           LOG.error("Something bad happened")
           self.log_git_exec(status, stderr, stdout, level=logging.INFO)
       except GitCommandError as gce:
-        # TODO Collect number of file conflicts to PatchApply object and log it to the final table
         if "patch does not apply" in gce.stderr:
           LOG.info("[%s] Patch %s does not apply to %s!" % (patch.issue_id, patch.filename, target_branch))
           self.log_git_exec(gce.status, gce.stderr, gce.stdout)
-          results.append(PatchApply(patch, target_branch, PatchStatus.CONFLICT))
+          
+          conflicts = GitUtils.get_number_of_conflicts_from_str(gce.stderr)
+          results.append(PatchApply(patch, target_branch, PatchStatus.CONFLICT, conflicts=conflicts))
 
     return results
 
