@@ -28,8 +28,7 @@ class PatchApply:
            " { patch: " + self.patch + \
            ", branch: " + str(self.branch) + \
            ", result: " + str(self.result) + \
-           ", conflicts: " + str(self.conflicts) + \
-           ", conflict_details: " + str(self.conflict_details) + " }"
+           ", conflicts: " + str(self.conflicts) + " }"
 
 
 class PatchStatus:

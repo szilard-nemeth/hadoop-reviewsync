@@ -1,7 +1,9 @@
+from patch_apply import PatchStatus
 from string_utils import StringUtils
 import logging
 
 LOG = logging.getLogger(__name__)
+
 
 class JiraPatch:
   def __init__(self, issue_id, owner, version, target_branch, patch_file, applicability):
@@ -13,13 +15,17 @@ class JiraPatch:
     self.filename = patch_file
     self.target_branches = [target_branch]
     self.applicability = {target_branch: applicability}
-    
+    self.overall_status = PatchOverallStatus("N/A")
+
   def get_applicability(self, branch):
     return self.applicability[branch]
-    
+
   def set_patch_file_path(self, file_path):
     self.file_path = file_path
     
+  def set_overall_status(self, overall_status):
+    self.overall_status = overall_status
+
   def add_additional_branch(self, branch, applicability):
     self.target_branches.append(branch)
     self.applicability[branch] = applicability
@@ -28,7 +34,7 @@ class JiraPatch:
     if branch in self.applicability:
       return self.applicability[branch].applicable
     return False
-  
+
   def get_reason_for_non_applicability(self, branch):
     if branch in self.applicability:
       return self.applicability[branch].reason
@@ -61,6 +67,7 @@ class JiraPatch:
              self.target_branches == other.target_branches
     return False
 
+
 class PatchOwner:
   def __init__(self, name, display_name):
     self.name = name
@@ -78,3 +85,15 @@ class PatchOwner:
     return self.__class__.__name__ + \
            " { name: " + self.name + \
            ", display_name: " + StringUtils.replace_special_chars(self.display_name) + " }"
+
+
+class PatchOverallStatus:
+  def __init__(self, status):
+    self.status = status
+    
+  def __repr__(self):
+    return repr(self.status)
+  
+  def __str__(self):
+    return self.__class__.__name__ + \
+           " { status: " + self.status + "}"

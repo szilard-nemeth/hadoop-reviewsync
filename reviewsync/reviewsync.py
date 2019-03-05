@@ -19,6 +19,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from file_utils import FileUtils
 from patch_apply import PatchStatus
+from jira_patch import PatchOverallStatus
 
 DEFAULT_BRANCH = "trunk"
 JIRA_URL = "https://issues.apache.org/jira"
@@ -104,8 +105,24 @@ class ReviewSync:
         if patch.issue_id not in results:
           results[patch.issue_id] = []
         results[patch.issue_id] += patch_applies
-    LOG.info("List of Patch applies: %s", results)
+        
+    self.set_overall_status_for_results(results)
+    LOG.info("List of Patch applies: %s", str(results))
     return results
+
+  @staticmethod
+  def set_overall_status_for_results(results):
+    for issue_id, patch_applies in results.iteritems():
+      # Get patch object from any PatchApply object (0th index in this case)
+      # Since PatchApply objects hold reference to the same patch object, this is safe to be done here!
+      patch = patch_applies[0].patch
+      statuses = []
+      for patch_apply in patch_applies:
+        statuses.append("{}: {}".format(patch_apply.branch, "CONFLICT" if patch_apply.result == PatchStatus.CONFLICT else "OK"))
+      
+      overall_status = PatchOverallStatus(", ".join(statuses))
+      LOG.debug("[%s] Setting overall status %s", issue_id, str(overall_status))
+      patch.set_overall_status(overall_status)
 
   @staticmethod
   def init_logger(log_dir, console_debug=False):
@@ -234,18 +251,14 @@ class ReviewSync:
     update_date_str = datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')
     
     for issue_id, patch_applies in results.iteritems():
-      overall_status = PatchStatus.APPLIES_CLEANLY
-      for patch_apply in patch_applies:
-        if patch_apply.result != PatchStatus.APPLIES_CLEANLY:
-          overall_status = patch_apply.result
-          break
-        
-      self.gsheet_wrapper.update_issue_with_results(issue_id, update_date_str, overall_status)
-
+      if len(patch_applies) > 0:
+        overall_status = patch_applies[0].patch.overall_status
+        self.gsheet_wrapper.update_issue_with_results(issue_id, update_date_str, overall_status)
+      
   @staticmethod
   def convert_data_for_result_printer(results):
     data = []
-    headers = ["Row", "Issue", "Patch apply", "Owner", "Patch file", "Branch", "Explicit", "Result", "Number of conflicted files"]
+    headers = ["Row", "Issue", "Patch apply", "Owner", "Patch file", "Branch", "Explicit", "Result", "Number of conflicted files", "Overall result"]
     row = 0
     for issue_id, patch_applies in results.iteritems():
       for idx, patch_apply in enumerate(patch_applies):
@@ -254,7 +267,7 @@ class ReviewSync:
         explicit = "Yes" if patch_apply.explicit else "No"
         conflicts = "N/A" if patch_apply.conflicts == 0 else str(patch_apply.conflicts)
         data.append([row, issue_id, idx + 1, patch.owner_display_name, patch.filename,
-                     patch_apply.branch, explicit, patch_apply.result, conflicts])
+                     patch_apply.branch, explicit, patch_apply.result, conflicts, patch.overall_status.status])
 
     return data, headers
 
