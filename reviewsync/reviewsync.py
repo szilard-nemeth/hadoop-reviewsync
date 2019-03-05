@@ -110,19 +110,40 @@ class ReviewSync:
     LOG.info("List of Patch applies: %s", str(results))
     return results
 
-  @staticmethod
-  def set_overall_status_for_results(results):
+  @classmethod
+  def set_overall_status_for_results(cls, results):
     for issue_id, patch_applies in results.iteritems():
-      # Get patch object from any PatchApply object (0th index in this case)
-      # Since PatchApply objects hold reference to the same patch object, this is safe to be done here!
-      patch = patch_applies[0].patch
+      statuses = set(map(lambda pa: pa.result, patch_applies))
+      if len(statuses) == 1 and next(iter(statuses)) == PatchStatus.PATCH_ALREADY_COMMITTED:
+        cls._set_overall_status_for_patches(issue_id, patch_applies, PatchOverallStatus("ALL COMMITTED"))
+        continue
+      
       statuses = []
       for patch_apply in patch_applies:
-        statuses.append("{}: {}".format(patch_apply.branch, "CONFLICT" if patch_apply.result == PatchStatus.CONFLICT else "OK"))
+        status = cls._translate_patch_apply_status_to_str(patch_apply)
+        statuses.append(status)
       
-      overall_status = PatchOverallStatus(", ".join(statuses))
-      LOG.debug("[%s] Setting overall status %s", issue_id, str(overall_status))
-      patch.set_overall_status(overall_status)
+      cls._set_overall_status_for_patches(issue_id, patch_applies, PatchOverallStatus(", ".join(statuses)))
+
+  @classmethod
+  def _translate_patch_apply_status_to_str(cls, patch_apply):
+    status_str = "N/A"
+    if patch_apply.result == PatchStatus.CONFLICT:
+      status_str = "CONFLICT"
+    elif patch_apply.result == PatchStatus.PATCH_ALREADY_COMMITTED:
+      status_str = "COMMITTED"
+    elif patch_apply.result == PatchStatus.APPLIES_CLEANLY:
+      status_str = "OK"
+    status = "{}: {}".format(patch_apply.branch, status_str)
+    return status
+
+  @classmethod
+  def _set_overall_status_for_patches(cls, issue_id, patch_applies, overall_status):
+    # As patch object can be different for each PatchApply object, we need to set the overall status for each
+    LOG.debug("[%s] Setting overall status %s", issue_id, str(overall_status))
+    for pa in patch_applies:
+      pa.patch.set_overall_status(overall_status)
+    
 
   @staticmethod
   def init_logger(log_dir, console_debug=False):
