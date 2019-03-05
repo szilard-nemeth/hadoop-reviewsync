@@ -245,13 +245,13 @@ class ReviewSync:
   @staticmethod
   def convert_data_for_result_printer(results):
     data = []
-    headers = ["Row", "Patch apply", "Issue", "Owner", "Patch file", "Branch", "Result"]
+    headers = ["Row", "Issue", "Patch apply", "Owner", "Patch file", "Branch", "Result"]
     row = 0
     for issue_id, patch_applies in results.iteritems():
       for idx, patch_apply in enumerate(patch_applies):
         row += 1
         patch = patch_apply.patch
-        data.append([row, idx + 1, issue_id, patch.owner_display_name, patch.filename,
+        data.append([row, issue_id, idx + 1 , patch.owner_display_name, patch.filename,
                      patch_apply.branch, patch_apply.result])
 
     return data, headers
