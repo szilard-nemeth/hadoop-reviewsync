@@ -1,3 +1,4 @@
+import requests
 from jira import JIRA
 import re
 import os
@@ -5,6 +6,7 @@ import logging
 from jira_patch import JiraPatch, PatchOwner
 from attachment_utils import AttachmentUtils
 from patch_apply import PatchApplicability
+import time
 
 LOG = logging.getLogger(__name__)
 
@@ -13,7 +15,8 @@ DEFAULT_PATCH_EXTENSION = "patch"
 class JiraWrapper:
   def __init__(self, jira_url, default_branch, patches_root):
     options = { 'server': jira_url}
-    self.jira = JIRA(options, timeout=3)
+    self.jira = JIRA(options, timeout=20, max_retries=10)
+    self.jira_url = jira_url
     self.default_branch = default_branch
     self.patches_root = patches_root
     
@@ -30,18 +33,30 @@ class JiraWrapper:
           os.makedirs(issue_dir)
           
         LOG.debug("Downloading patch from issue %s to file %s", patch.issue_id, patch_file_path)
-        
+        attachment_data = self._download_attachment_with_retries(attachment)
+
         #TODO let JiraPatch object create the path
         patch.set_patch_file_path(patch_file_path)
         with open(patch_file_path, "w") as file:
-          file.write(attachment.get())
+          file.write(attachment_data)
         found = True
         break
     
     if not found:
       raise ValueError("Cannot find attachment with name '{name}' for issue {issue}"
                        .format(name=patch.filename, issue=patch.issue_id))
-    
+
+  def _download_attachment_with_retries(self, attachment):
+    tried = 0
+    max_retries = 5
+    while max_retries != tried:
+      try:
+        tried += 1
+        return attachment.get()
+      except requests.exceptions.Timeout:
+        LOG.error("Read timed out while communicating with %s, sleeping for 5 seconds...", self.jira_url)
+        time.sleep(5)
+
   def list_attachments(self, issue_id):
     issue = self.jira.issue(issue_id)
 
