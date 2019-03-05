@@ -95,9 +95,16 @@ class GSheetWrapper:
     for idx, row in enumerate(rows):
       issue = row[jira_col]
       issues.append(issue)
-      update_date_cell_id = rowcol_to_a1(idx + idx_correction_row, update_date_col_idx + idx_correction_col)
-      status_cell_id = rowcol_to_a1(idx + idx_correction_row, status_col_idx + idx_correction_col)
-      self.issue_to_cellupdate[issue] = CellUpdateForIssue(issue, update_date_cell_id, status_cell_id)
+      
+      update_date_cell_id, status_cell_id = None, None
+      if self.options.do_update_date:
+        update_date_cell_id = rowcol_to_a1(idx + idx_correction_row, update_date_col_idx + idx_correction_col)
+      if self.options.do_update_status:
+        status_cell_id = rowcol_to_a1(idx + idx_correction_row, status_col_idx + idx_correction_col)
+        
+      # If update is required for any cell, we need to store a CellUpdateForIssue object, otherwise don't store it
+      if update_date_cell_id or status_cell_id:
+        self.issue_to_cellupdate[issue] = CellUpdateForIssue(issue, update_date_cell_id, status_cell_id)
 
     LOG.debug("Issue to CellUpdate mappings: %s", self.issue_to_cellupdate)
     LOG.debug("Found Jira issue from GSheet: %s", issues)
@@ -118,6 +125,10 @@ class GSheetWrapper:
     return column_idx
     
   def update_issue_with_results(self, issue, date_str, status):
+    if issue not in self.issue_to_cellupdate:
+      LOG.info("No cell update will be performed for issue %s", issue)
+      return
+
     cell_update = self.issue_to_cellupdate[issue]
     LOG.info("Would update issue: %s, date: %s, status: %s, cell date: %s, cell status: %s",
              issue, date_str, status, cell_update.update_date_cell, cell_update.status_cell)
