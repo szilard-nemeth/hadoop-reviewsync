@@ -226,7 +226,7 @@ class ReviewSync:
     return patches
 
   def print_results_table(self, results):
-    data, headers = self.convert_data_to_result_printer(results)
+    data, headers = self.convert_data_for_result_printer(results)
     result_printer = ResultPrinter(data, headers)
     result_printer.print_table()
 
@@ -243,13 +243,15 @@ class ReviewSync:
       self.gsheet_wrapper.update_issue_with_results(issue_id, update_date_str, overall_status)
 
   @staticmethod
-  def convert_data_to_result_printer(results):
+  def convert_data_for_result_printer(results):
     data = []
-    headers = ["Issue", "Owner", "Patch file", "Branch", "Result"]
+    headers = ["Row", "Patch apply", "Issue", "Owner", "Patch file", "Branch", "Result"]
+    row = 0
     for issue_id, patch_applies in results.iteritems():
-      for patch_apply in patch_applies:
+      for idx, patch_apply in enumerate(patch_applies):
+        row += 1
         patch = patch_apply.patch
-        data.append([issue_id, patch.owner_display_name, patch.filename,
+        data.append([row, idx + 1, issue_id, patch.owner_display_name, patch.filename,
                      patch_apply.branch, patch_apply.result])
 
     return data, headers
