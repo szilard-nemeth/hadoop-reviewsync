@@ -11,7 +11,7 @@ from git_wrapper import GitWrapper
 from gsheet_wrapper import GSheetWrapper, GSheetOptions
 from os.path import expanduser
 import datetime
-
+import time
 from attachment_utils import AttachmentUtils
 from result_printer import ResultPrinter
 from obj_utils import ObjUtils
@@ -294,6 +294,8 @@ class ReviewSync:
 
 
 if __name__ == '__main__':
+  start_time = time.time()
+  
   # Parse args
   args = ReviewSync.parse_args()
   reviewsync = ReviewSync(args)
@@ -309,3 +311,6 @@ if __name__ == '__main__':
     if reviewsync.issue_fetch_mode == JiraFetchMode.GSHEET:
       LOG.info("Updating GSheet with results...")
       reviewsync.update_gsheet(results)
+  
+  end_time = time.time()
+  LOG.info("Execution of script took %d seconds", end_time - start_time)
