@@ -14,6 +14,9 @@ class JiraPatch:
     self.target_branches = [target_branch]
     self.applicability = {target_branch: applicability}
     
+  def get_applicability(self, branch):
+    return self.applicability[branch]
+    
   def set_patch_file_path(self, file_path):
     self.file_path = file_path
     

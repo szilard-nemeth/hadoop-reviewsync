@@ -4,6 +4,7 @@ import os
 
 from patch_apply import PatchApply, PatchStatus
 from jira_patch import JiraPatch
+from git_utils import GitUtils
 
 HADOOP_UPSTREAM_REPO_URL = "https://github.com/apache/hadoop.git"
 BRANCH_PREFIX = "reviewsync"
@@ -142,14 +143,8 @@ class GitWrapper:
             stripped_rbranch = r_branch.lstrip()
 
             if strip_remote:
-              # Strip off leading "<remote>/" part, if any
-              split_parts = stripped_rbranch.rsplit("/", 1)
-              
-              if len(split_parts) == 2:
-                l_branch = split_parts[1]
-              else:
-                l_branch = split_parts
-              remote_branches.append(l_branch)
+              local_branch = GitUtils.convert_remote_branch_name_to_local(r_branch)
+              remote_branches.append(local_branch)
             else:
               remote_branches.append(stripped_rbranch)
       else:

@@ -121,7 +121,7 @@ class JiraWrapper:
         LOG.info("[%s] Patch should be targeted to additional branch %s, but it is already committed on that branch!", issue_id, branch)
       if branch not in branch_to_patch_dict and branch_required:
         patch = branch_to_patch_dict[self.default_branch]
-        patch.add_additional_branch(branch, PatchApplicability(True))
+        patch.add_additional_branch(branch, PatchApplicability(True, explicit=False))
         branch_to_patch_dict[branch] = patch
 
     LOG.debug("Found patches from all issues, only latest and after overrides applied: %s", branches_to_patches)
