@@ -8,6 +8,7 @@ LOG = logging.getLogger(__name__)
 class JiraPatch:
   def __init__(self, issue_id, owner, version, target_branch, patch_file, applicability):
     self.issue_id = issue_id
+    # TODO owner and owner_short are currently not queried anywhere except __str__
     self.owner = owner
     self.owner_short = owner.name
     self.owner_display_name = owner.display_name

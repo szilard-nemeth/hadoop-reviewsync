@@ -12,6 +12,7 @@ LOG = logging.getLogger(__name__)
 
 DEFAULT_PATCH_EXTENSION = "patch"
 
+
 class JiraWrapper:
   def __init__(self, jira_url, default_branch, patches_root):
     options = { 'server': jira_url}
@@ -81,8 +82,13 @@ class JiraWrapper:
 
   def get_patches_per_branch(self, issue_id, additional_branches, committed_on_branches):
     issue = self.jira.issue(issue_id)
-    owner_name = issue.fields.assignee.name
-    owner_display_name = issue.fields.assignee.displayName
+    
+    if issue.fields.assignee:
+      owner_name = issue.fields.assignee.name
+      owner_display_name = issue.fields.assignee.displayName
+    else:
+      owner_name = "unassigned"
+      owner_display_name = "unassigned"
     owner = PatchOwner(owner_name, owner_display_name)
 
     # applicable = False if self.is_status_resolved(issue_id) else True
