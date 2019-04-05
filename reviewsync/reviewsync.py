@@ -114,7 +114,7 @@ class ReviewSync:
   def set_overall_status_for_results(cls, results):
     for issue_id, patch_applies in results.iteritems():
       statuses = set(map(lambda pa: pa.result, patch_applies))
-      if len(statuses) == 1 and next(iter(statuses)) == PatchStatus.PATCH_ALREADY_COMMITTED:
+      if len(statuses) == 1 and next(iter(statuses)) == PatchStatus.ALREADY_COMMITTED:
         cls._set_overall_status_for_patches(issue_id, patch_applies, PatchOverallStatus("ALL COMMITTED"))
         continue
       
@@ -130,7 +130,7 @@ class ReviewSync:
     status_str = "N/A"
     if patch_apply.result == PatchStatus.CONFLICT:
       status_str = "CONFLICT"
-    elif patch_apply.result == PatchStatus.PATCH_ALREADY_COMMITTED:
+    elif patch_apply.result == PatchStatus.ALREADY_COMMITTED:
       status_str = "COMMITTED"
     elif patch_apply.result == PatchStatus.APPLIES_CLEANLY:
       status_str = "OK"
