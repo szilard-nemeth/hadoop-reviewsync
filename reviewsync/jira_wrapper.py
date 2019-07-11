@@ -22,6 +22,7 @@ class JiraWrapper:
     self.patches_root = patches_root
     
   def download_patch_file(self, patch):
+    LOG.debug("Querying jira issue %s", patch.issue_id)
     issue = self.jira.issue(patch.issue_id)
 
     found = False
@@ -158,9 +159,6 @@ class JiraWrapper:
     return result
       
   def create_jira_patch_obj(self, issue_id, filename, owner, committed_on_branches):
-    # YARN-9213.branch3.2.001.patch
-    # YARN-9139.branch-3.1.001.patch
-    # YARN-9213.003.patch
     sep_char = self._get_separator_char(filename)
     if not sep_char:
       LOG.error("[%s] Filename %s does not seem to have separator character after jira issue ID!", issue_id, filename)
@@ -168,14 +166,19 @@ class JiraWrapper:
     
     trunk_search_obj = re.search(r'(\w+-\d+)' + re.escape(sep_char) + '(\d+)\.'
                                  + DEFAULT_PATCH_EXTENSION + '$', filename)
-    
-    #TODO sanity check issue_id and parsed_issue_id is the same!
-    
+
     # First, let's suppose that we have a patch file targeted to trunk
+    # Example filename: YARN-9213.003.patch
     if trunk_search_obj:
       if len(trunk_search_obj.groups()) == 2:
         parsed_issue_id = trunk_search_obj.group(1)
         parsed_version = trunk_search_obj.group(2)
+
+        LOG.debug("Parsed jira details for issue %s: filename: %s, issue id: %s, version: %s",
+                  issue_id, filename, parsed_issue_id, parsed_version)
+
+        if parsed_issue_id != issue_id:
+          raise ValueError("Parsed issue id {} does not match original issue id {}!".format(parsed_issue_id, issue_id))
 
         if self.default_branch not in committed_on_branches:
           applicability = PatchApplicability(True)
@@ -183,12 +186,16 @@ class JiraWrapper:
           applicability = PatchApplicability(False, "Patch already committed on {}".format(self.default_branch))
         return JiraPatch(parsed_issue_id, owner, parsed_version, self.default_branch, filename, applicability)
       else:
-        raise ValueError("Filename %s matched for trunk branch pattern, "
-                         "but does not have issue ID and version in expected position!".format(filename))
+        raise ValueError("Filename {} does not match for trunk branch pattern, ".format(filename))
     else:
       # Trunk filename pattern did not match.
       # Try to match against pattern that has other branch than trunk.
-      # Example: YARN-9213.branch-3.2.004.patch
+      # Examples:
+      # YARN-9213.branch-3.2.004.patch
+      # YARN-9139.branch-3.1.001.patch
+      # YARN-9213.branch3.2.001.patch
+      # YARN-9573.001.branch-3.1.patch
+
       search_obj = re.search(r'(\w+-\d+)' + re.escape(sep_char) +
                              '([a-zA-Z\-0-9.]+)' + re.escape(sep_char) +
                              '(\d+)\.' + DEFAULT_PATCH_EXTENSION + '$', filename)
@@ -196,6 +203,9 @@ class JiraWrapper:
         parsed_issue_id = search_obj.group(1)
         parsed_branch = search_obj.group(2)
         parsed_version = search_obj.group(3)
+
+        LOG.debug("Parsed jira details for issue %s: filename:%s, issue id: %s, branch: %s, version: %s",
+                  issue_id, filename, parsed_issue_id, parsed_branch, parsed_version)
 
         if parsed_branch not in committed_on_branches:
           applicability = PatchApplicability(True)
