@@ -228,6 +228,7 @@ class ReviewSync:
     # parser.add_argument(
     #   '-j', '--jira-url', type=str, help='URL of jira to check', required=True)
     args = parser.parse_args()
+    print("Args: " + str(args))
     
     if not args.issues and not args.gsheet_enable:
       parser.error("Either list of jira issues (--issues) or Google Sheet integration (--gsheet) need to be provided!")
@@ -239,9 +240,11 @@ class ReviewSync:
                                args.gsheet_jira_column is None):
       parser.error("--gsheet requires --gsheet-client-secret, --gsheet-spreadsheet, --gsheet-worksheet and --gsheet-jira-column.")
     
-    if args.issues and len(args.issues) > 1:
+    if args.issues and len(args.issues) > 0:
+      print("Using fetch mode: issues")
       args.fetch_mode = JiraFetchMode.ISSUES_CMDLINE
     elif args.gsheet_enable:
+      print("Using fetch mode: gsheet")
       args.fetch_mode = JiraFetchMode.GSHEET
       args.gsheet_options = GSheetOptions(args.gsheet_client_secret,
                                           args.gsheet_spreadsheet,
@@ -249,6 +252,8 @@ class ReviewSync:
                                           args.gsheet_jira_column,
                                           update_date_column=args.gsheet_update_date_column,
                                           status_column=args.gsheet_status_info_column)
+    else:
+      print("Unknown fetch mode!")
     
     return args
 
