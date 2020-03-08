@@ -1,5 +1,6 @@
 import requests
 from jira import JIRA
+from jira.exceptions import JIRAError
 import re
 import os
 import logging
@@ -82,8 +83,8 @@ class JiraWrapper:
     return False
 
   def get_patches_per_branch(self, issue_id, additional_branches, committed_on_branches):
-    issue = self.jira.issue(issue_id)
-    
+    issue = self._get_jira_issue(issue_id)
+
     if issue.fields.assignee:
       owner_name = issue.fields.assignee.name
       owner_display_name = issue.fields.assignee.displayName
@@ -157,7 +158,17 @@ class JiraWrapper:
     result = list(result)
     LOG.info("Found patches from all issues, after all filters applied: %s", result)
     return result
-      
+
+  def _get_jira_issue(self, issue_id):
+    retries = 1
+    try:
+      if retries > 5:
+        raise Exception("Jira could not be accessed 5 times, consecutively! Stopping execution.")
+      return self.jira.issue(issue_id)
+    except JIRAError:
+      LOG.exception("JIRAError caught! Retrying to access jira!")
+      retries += 1
+
   def create_jira_patch_obj(self, issue_id, filename, owner, committed_on_branches):
     sep_char = self._get_separator_char(filename)
     if not sep_char:

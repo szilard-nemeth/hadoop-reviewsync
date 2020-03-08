@@ -93,6 +93,10 @@ class ReviewSync:
     
     results = OrderedDict()
     for issue_id in issues:
+      if not issue_id:
+        LOG.warn("Found issue with empty issue ID! One reason could be an empty row of a Google sheet!")
+        continue
+
       committed_on_branches = self.git_wrapper.get_remote_branches_committed_for_issue(issue_id)
       LOG.info("Issue %s is committed on branches: %s", issue_id, committed_on_branches)
       patches = self.download_latest_patches(issue_id, committed_on_branches)
