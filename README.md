@@ -44,7 +44,7 @@ TODO
 python ./reviewsync/reviewsync.py -i YARN-9138 YARN-9139 -b branch-3.2 -v
 ```
 
-2. Check if patches cna be applied to trunk, branch-3.2 and branch-3.1 downloaded from the Jira issues found in Google Sheet.
+2. Check if patches can be applied to trunk, branch-3.2 and branch-3.1 downloaded from the Jira issues found in Google Sheet.
 If --gsheet is specified, a number of other Google Sheet specific arguments are required: 
   * --gsheet-client-secret: File to be used for authenticate to Google Sheets API.
   * --gsheet-spreadsheet: Name of the spreadsheet (document) on Google Sheet.
