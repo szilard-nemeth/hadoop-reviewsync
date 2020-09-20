@@ -3,3 +3,4 @@ gitpython
 tabulate
 gspread
 oauth2client
+git+ssh://git@github.com/szilard-nemeth/python-commons.git

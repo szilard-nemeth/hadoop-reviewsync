@@ -1,4 +1,4 @@
-from git_utils import GitUtils
+from pythoncommons.git_utils import GitUtils
 
 
 class PatchApply:

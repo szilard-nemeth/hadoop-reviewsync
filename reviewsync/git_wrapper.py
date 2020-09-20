@@ -2,9 +2,10 @@ import logging
 from git import Repo, RemoteProgress, GitCommandError
 import os
 
+from pythoncommons.git_utils import GitUtils
+
 from patch_apply import PatchApply, PatchStatus
 from jira_patch import JiraPatch
-from git_utils import GitUtils
 
 HADOOP_UPSTREAM_REPO_URL = "https://github.com/apache/hadoop.git"
 BRANCH_PREFIX = "reviewsync"

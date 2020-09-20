@@ -1,5 +1,6 @@
-from string_utils import StringUtils
 import logging
+
+from pythoncommons.string_utils import StringUtils
 
 LOG = logging.getLogger(__name__)
 

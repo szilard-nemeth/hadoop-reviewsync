@@ -4,6 +4,9 @@ import argparse
 import logging
 import os
 from collections import OrderedDict
+
+from pythoncommons.file_utils import FileUtils
+
 from jira_wrapper import JiraWrapper, JiraFetchMode
 from git_wrapper import GitWrapper
 from gsheet_wrapper import GSheetWrapper, GSheetOptions
@@ -13,7 +16,6 @@ import time
 from result_printer import ResultPrinter
 from logging.handlers import TimedRotatingFileHandler
 
-from file_utils import FileUtils
 from patch_apply import PatchStatus
 from jira_patch import PatchOverallStatus
 
