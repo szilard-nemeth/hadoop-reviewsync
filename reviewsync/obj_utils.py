@@ -8,5 +8,5 @@ class ObjUtils:
   @staticmethod
   def print_properties(obj):
     LOG.info("Printing properties of obj: %s", obj)
-    for property, value in vars(obj).iteritems():
+    for property, value in vars(obj).items():
       LOG.info("%s: %s", property, value)

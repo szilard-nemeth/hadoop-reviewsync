@@ -152,7 +152,7 @@ class JiraWrapper:
     # We could also have duplicates at this point, 
     # the combination of sets and __eq__ method of JiraPatch will sort out duplicates
     result = set()
-    for branch, patch in branch_to_patch_dict.iteritems():
+    for branch, patch in branch_to_patch_dict.items():
       result.add(patch)
     
     result = list(result)

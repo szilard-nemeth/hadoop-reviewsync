@@ -4,7 +4,7 @@ import logging
 from gspread import SpreadsheetNotFound, WorksheetNotFound
 from gspread.utils import rowcol_to_a1
 from oauth2client.service_account import ServiceAccountCredentials
-from pprint import pprint, pformat, PrettyPrinter
+from pprint import pformat
 
 SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 LOG = logging.getLogger(__name__)

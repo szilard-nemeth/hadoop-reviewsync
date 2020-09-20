@@ -1,4 +1,3 @@
-from patch_apply import PatchStatus
 from string_utils import StringUtils
 import logging
 

@@ -59,7 +59,7 @@ class GitWrapper:
       target_branch = "origin/" + branch
 
       if not patch.is_applicable_for_branch(branch):
-        LOG.warn("Patch %s is not applicable on branch %s! Reason: %s!", patch, branch, patch.get_reason_for_non_applicability(branch))
+        LOG.warning("Patch %s is not applicable on branch %s! Reason: %s!", patch, branch, patch.get_reason_for_non_applicability(branch))
         results.append(PatchApply(patch, target_branch, PatchStatus.PATCH_ALREADY_COMMITTED))
         continue
       

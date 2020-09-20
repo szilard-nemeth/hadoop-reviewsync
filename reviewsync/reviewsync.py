@@ -1,8 +1,6 @@
 #!/usr/bin/python
 
 import argparse
-import sys
-import datetime
 import logging
 import os
 from collections import OrderedDict
@@ -12,9 +10,7 @@ from gsheet_wrapper import GSheetWrapper, GSheetOptions
 from os.path import expanduser
 import datetime
 import time
-from attachment_utils import AttachmentUtils
 from result_printer import ResultPrinter
-from obj_utils import ObjUtils
 from logging.handlers import TimedRotatingFileHandler
 
 from file_utils import FileUtils
@@ -94,14 +90,14 @@ class ReviewSync:
     results = OrderedDict()
     for issue_id in issues:
       if not issue_id:
-        LOG.warn("Found issue with empty issue ID! One reason could be an empty row of a Google sheet!")
+        LOG.warning("Found issue with empty issue ID! One reason could be an empty row of a Google sheet!")
         continue
 
       committed_on_branches = self.git_wrapper.get_remote_branches_committed_for_issue(issue_id)
       LOG.info("Issue %s is committed on branches: %s", issue_id, committed_on_branches)
       patches = self.download_latest_patches(issue_id, committed_on_branches)
       if len(patches) == 0:
-        LOG.warn("No patch found for Jira issue %s!", issue_id)
+        LOG.warning("No patch found for Jira issue %s!", issue_id)
         continue
 
       for patch in patches:
@@ -116,7 +112,7 @@ class ReviewSync:
 
   @classmethod
   def set_overall_status_for_results(cls, results):
-    for issue_id, patch_applies in results.iteritems():
+    for issue_id, patch_applies in results.items():
       statuses = set(map(lambda pa: pa.result, patch_applies))
       if len(statuses) == 1 and next(iter(statuses)) == PatchStatus.PATCH_ALREADY_COMMITTED:
         cls._set_overall_status_for_patches(issue_id, patch_applies, PatchOverallStatus("ALL COMMITTED"))
@@ -237,7 +233,7 @@ class ReviewSync:
     if not args.issues and not args.gsheet_enable:
       parser.error("Either list of jira issues (--issues) or Google Sheet integration (--gsheet) need to be provided!")
     
-    #TODO check existence + readability on secret file!!
+    # TODO check existence + readability on secret file!!
     if args.gsheet_enable and (args.gsheet_client_secret is None or
                                args.gsheet_spreadsheet is None or 
                                args.gsheet_worksheet is None or
@@ -280,7 +276,7 @@ class ReviewSync:
   def update_gsheet(self, results):
     update_date_str = datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')
     
-    for issue_id, patch_applies in results.iteritems():
+    for issue_id, patch_applies in results.items():
       if len(patch_applies) > 0:
         overall_status = patch_applies[0].patch.overall_status
         self.gsheet_wrapper.update_issue_with_results(issue_id, update_date_str, overall_status)
@@ -290,7 +286,7 @@ class ReviewSync:
     data = []
     headers = ["Row", "Issue", "Patch apply", "Owner", "Patch file", "Branch", "Explicit", "Result", "Number of conflicted files", "Overall result"]
     row = 0
-    for issue_id, patch_applies in results.iteritems():
+    for issue_id, patch_applies in results.items():
       for idx, patch_apply in enumerate(patch_applies):
         row += 1
         patch = patch_apply.patch

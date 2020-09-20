@@ -7,7 +7,7 @@ class AttachmentUtils:
       patches_dict[branch_name].sort(key=lambda patch: patch.version, reverse=True)
       
     result = {}
-    for branch, patches in patches_dict.iteritems():
+    for branch, patches in patches_dict.items():
       # We know that this is ordered by patch version, DESC
       if len(patches) == 0:
         raise ValueError("Expected at least one target branch for patch: " + str(patches))
