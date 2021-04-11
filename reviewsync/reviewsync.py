@@ -6,6 +6,7 @@ import os
 from collections import OrderedDict
 
 from pythoncommons.file_utils import FileUtils
+from pythoncommons.result_printer import BasicResultPrinter
 
 from jira_wrapper import JiraWrapper, JiraFetchMode
 from git_wrapper import GitWrapper
@@ -13,7 +14,6 @@ from gsheet_wrapper import GSheetWrapper, GSheetOptions
 from os.path import expanduser
 import datetime
 import time
-from result_printer import ResultPrinter
 from logging.handlers import TimedRotatingFileHandler
 
 from patch_apply import PatchStatus
@@ -272,8 +272,7 @@ class ReviewSync:
 
   def print_results_table(self, results):
     data, headers = self.convert_data_for_result_printer(results)
-    result_printer = ResultPrinter(data, headers)
-    result_printer.print_table()
+    BasicResultPrinter.print_table(data, headers)
 
   def update_gsheet(self, results):
     update_date_str = datetime.datetime.now().strftime('%d/%m/%Y %H:%M:%S')
