@@ -2,3 +2,4 @@ gitpython
 gspread
 oauth2client
 git+https://github.com/szilard-nemeth/python-commons.git
+jira

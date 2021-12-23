@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.result_printer import BasicResultPrinter
+from pythoncommons.jira_wrapper import JiraFetchMode
 
 from jira_wrapper import HadoopJiraWrapper, JiraFetchMode
 from git_wrapper import GitWrapper
