@@ -4,19 +4,19 @@ import re
 import logging
 
 from pythoncommons.jira_wrapper import JiraWrapper
-
 from jira_patch import HadoopJiraPatch
 from patch_apply import PatchApplicability
-import time
 
 LOG = logging.getLogger(__name__)
 
 DEFAULT_PATCH_EXTENSION = "patch"
+TRUNK_PATCH_FILENAME_PATTERN_TEMPLATE = r'^(\w+-\d+)$SEPCHAR(\d+)\.' + DEFAULT_PATCH_EXTENSION + '$'
 
 
 class HadoopJiraWrapper(JiraWrapper):
-  def __init__(self, jira_url, default_branch, patches_root):
+  def __init__(self, jira_url, default_branch, patches_root, git_wrapper):
     super().__init__(jira_url, default_branch, patches_root)
+    self.git_wrapper = git_wrapper
 
   def get_patches_per_branch(self, issue_id, additional_branches, committed_on_branches):
     issue = self.get_jira_issue(issue_id)
@@ -84,8 +84,7 @@ class HadoopJiraWrapper(JiraWrapper):
 
   def _get_patch_objects(self, issue, issue_id, owner, committed_on_branches):
     attachments = issue.fields.attachment
-    patches = map(lambda a: self.create_jira_patch_obj(issue_id, a.filename, owner, committed_on_branches),
-                  attachments)
+    patches = [self.create_jira_patch_obj(issue_id, a.filename, owner, committed_on_branches) for a in attachments]
     patches = [p for p in patches if p is not None]
     LOG.debug("[%s] Found patches (all): %s", issue_id, patches)
     return patches
@@ -106,9 +105,9 @@ class HadoopJiraWrapper(JiraWrapper):
     if not sep_char:
       LOG.error("[%s] Filename %s does not seem to have separator character after Jira issue ID!", issue_id, filename)
       return None
-    
-    trunk_search_obj = re.search(r'(\w+-\d+)' + re.escape(sep_char) + '(\d+)\.'
-                                 + DEFAULT_PATCH_EXTENSION + '$', filename)
+
+    pattern = TRUNK_PATCH_FILENAME_PATTERN_TEMPLATE.replace("$SEPCHAR", re.escape(sep_char))
+    trunk_search_obj = re.search(pattern, filename)
 
     # First, let's suppose that we have a patch file targeted to trunk
     # Example filename: YARN-9213.003.patch
@@ -176,6 +175,10 @@ class HadoopJiraWrapper(JiraWrapper):
       LOG.debug("Parsed jira details for issue %s: filename:%s, issue id: %s, branch: %s, version: %s",
                 issue_id, filename, parsed_issue_id, parsed_branch, parsed_version)
 
+      branch_exist = self.git_wrapper.is_branch_exist(parsed_branch)
+      if not branch_exist:
+        raise ValueError("Branch does not exist: {}. Please validate if attachment filename is correct, filename: {}"
+                         .format(parsed_branch, filename))
       if parsed_branch not in committed_on_branches:
         applicability = PatchApplicability(True)
       else:

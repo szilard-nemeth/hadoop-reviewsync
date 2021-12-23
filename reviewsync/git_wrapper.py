@@ -37,7 +37,15 @@ class GitWrapper:
                  HADOOP_UPSTREAM_REPO_URL, self.hadoop_repo_path)
         for fetch_info in origin.fetch(progress=ProgressPrinter("fetch")):
           LOG.debug("Updated %s to %s", fetch_info.ref, fetch_info.commit)
-          
+
+  def is_branch_exist(self, branch: str, exc_info=True):
+    try:
+      self.repo.git.rev_parse("--verify", branch)
+      return True
+    except GitCommandError:
+      LOG.exception("Branch does not exist", exc_info=exc_info)
+      return False
+
   def validate_branches(self, branches):
     if not self.repo:
       raise ValueError("Repository is not yet synced! Please invoke sync_hadoop method before this method!")
