@@ -1,4 +1,3 @@
-jira
 gitpython
 gspread
 oauth2client

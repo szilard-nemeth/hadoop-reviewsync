@@ -8,7 +8,7 @@ from collections import OrderedDict
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.result_printer import BasicResultPrinter
 
-from jira_wrapper import JiraWrapper, JiraFetchMode
+from jira_wrapper import HadoopJiraWrapper, JiraFetchMode
 from git_wrapper import GitWrapper
 from gsheet_wrapper import GSheetWrapper, GSheetOptions
 from os.path import expanduser
@@ -30,7 +30,7 @@ class ReviewSync:
     self.setup_dirs()
     self.branches = self.get_branches(args)
     self.git_wrapper = GitWrapper(self.git_root)
-    self.jira_wrapper = JiraWrapper(JIRA_URL, DEFAULT_BRANCH, self.patches_root)
+    self.jira_wrapper = HadoopJiraWrapper(JIRA_URL, DEFAULT_BRANCH, self.patches_root)
     self.issue_fetch_mode = args.fetch_mode
     if self.issue_fetch_mode == JiraFetchMode.GSHEET:
       self.gsheet_wrapper = GSheetWrapper(args.gsheet_options)

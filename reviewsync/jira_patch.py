@@ -1,31 +1,22 @@
 import logging
 
-from pythoncommons.string_utils import StringUtils
+from pythoncommons.jira_wrapper import JiraPatch, PatchOverallStatus
 
 LOG = logging.getLogger(__name__)
 
 
-class JiraPatch:
+class HadoopJiraPatch(JiraPatch):
   def __init__(self, issue_id, owner, version, target_branch, patch_file, applicability):
+    super(HadoopJiraPatch, self).__init__(issue_id, owner, patch_file)
     self.issue_id = issue_id
     # TODO owner and owner_short are currently not queried anywhere except __str__
-    self.owner = owner
-    self.owner_short = owner.name
-    self.owner_display_name = owner.display_name
     self.version = version
-    self.filename = patch_file
     self.target_branches = [target_branch]
     self.applicability = {target_branch: applicability}
     self.overall_status = PatchOverallStatus("N/A")
 
   def get_applicability(self, branch):
     return self.applicability[branch]
-
-  def set_patch_file_path(self, file_path):
-    self.file_path = file_path
-    
-  def set_overall_status(self, overall_status):
-    self.overall_status = overall_status
 
   def add_additional_branch(self, branch, applicability):
     self.target_branches.append(branch)
@@ -46,55 +37,20 @@ class JiraPatch:
     LOG.debug("Patch applicabilities: %s for patch %s", applicabilities, self)
     return True in applicabilities
 
+  # TODO verify these
   def __repr__(self):
-    return repr((self.issue_id, self.owner, self.version, self.target_branches, self.filename))
+    return repr(super(HadoopJiraPatch, self).__repr__() + (self.version, self.target_branches))
 
+  # TODO verify these
   def __str__(self):
-    return self.__class__.__name__ + \
-           " { issue_id: " + self.issue_id + \
-           ", owner: " + str(self.owner) + \
-           ", version: " + str(self.version) + \
-           ", filename: " + str(self.filename) + \
-           ", target_branch: " + str(self.target_branches) + " }"
+    return super().__str__() + \
+           "version: " + str(self.version) + \
+           ", target_branch: " + str(self.target_branches)
 
   def __hash__(self):
     return hash((self.issue_id, self.owner, self.filename, tuple(self.target_branches)))
 
   def __eq__(self, other):
-    if isinstance(other, JiraPatch):
-      return self.issue_id == other.issue_id and \
-             self.owner == other.owner and \
-             self.filename == other.filename and \
-             self.target_branches == other.target_branches
+    if isinstance(other, HadoopJiraPatch):
+      return super().__eq__(self, other) and self.target_branches == other.target_branches
     return False
-
-
-class PatchOwner:
-  def __init__(self, name, display_name):
-    self.name = name
-    self.display_name = display_name
-
-  def __repr__(self):
-    return repr((self.name, self.display_name))
-
-  def __str__(self):
-    # TODO understand unicode conversion issue in more details
-    # return self.__class__.__name__ + \
-    #        " { name: " + self.name + \
-    #        ", display_name: " + str(self.display_name) + " }"
-    # UnicodeEncodeError: 'ascii' codec can't encode character u'\xe1' in position 7: ordinal not in range(128)
-    return self.__class__.__name__ + \
-           " { name: " + self.name + \
-           ", display_name: " + StringUtils.replace_special_chars(self.display_name) + " }"
-
-
-class PatchOverallStatus:
-  def __init__(self, status):
-    self.status = status
-    
-  def __repr__(self):
-    return repr(self.status)
-  
-  def __str__(self):
-    return self.__class__.__name__ + \
-           " { status: " + self.status + "}"
