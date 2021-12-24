@@ -17,7 +17,7 @@ import datetime
 import time
 from logging.handlers import TimedRotatingFileHandler
 
-from patch_apply import PatchStatus
+from patch_apply import PatchStatus, PatchApply
 from jira_patch import PatchOverallStatus
 
 DEFAULT_BRANCH = "trunk"
@@ -95,11 +95,17 @@ class ReviewSync:
       if not issue_id:
         LOG.warning("Found issue with empty issue ID! One reason could be an empty row of a Google sheet!")
         continue
+      if "-" not in issue_id:
+        LOG.warning("Found issue with suspicious issue ID: %s", issue_id)
+        continue
 
       committed_on_branches = self.git_wrapper.get_remote_branches_committed_for_issue(issue_id)
       LOG.info("Issue %s is committed on branches: %s", issue_id, committed_on_branches)
       patches = self.download_latest_patches(issue_id, committed_on_branches)
       if len(patches) == 0:
+        results[issue_id] = []
+        for branch in self.branches:
+          results[issue_id].append(PatchApply(None, branch, PatchStatus.CANNOT_FIND_PATCH))
         LOG.warning("No patch found for Jira issue %s!", issue_id)
         continue
 
@@ -145,8 +151,8 @@ class ReviewSync:
     # As patch object can be different for each PatchApply object, we need to set the overall status for each
     LOG.debug("[%s] Setting overall status %s", issue_id, str(overall_status))
     for pa in patch_applies:
-      pa.patch.set_overall_status(overall_status)
-    
+      if pa.patch:
+        pa.patch.set_overall_status(overall_status)
 
   @staticmethod
   def init_logger(log_dir, console_debug=False):
@@ -280,7 +286,12 @@ class ReviewSync:
     
     for issue_id, patch_applies in results.items():
       if len(patch_applies) > 0:
-        overall_status = patch_applies[0].patch.overall_status
+        patch = patch_applies[0].patch
+        if patch:
+          overall_status = patch.overall_status
+        else:
+          # We only have the PatchApply object here, not the Patch
+          overall_status = PatchOverallStatus(patch_applies[0].result)
         self.gsheet_wrapper.update_issue_with_results(issue_id, update_date_str, overall_status)
       
   @staticmethod
@@ -294,8 +305,16 @@ class ReviewSync:
         patch = patch_apply.patch
         explicit = "Yes" if patch_apply.explicit else "No"
         conflicts = "N/A" if patch_apply.conflicts == 0 else str(patch_apply.conflicts)
-        data.append([row, issue_id, idx + 1, patch.owner_display_name, patch.filename,
-                     patch_apply.branch, explicit, patch_apply.result, conflicts, patch.overall_status.status])
+        if patch:
+          owner = patch.owner_display_name
+          filename = patch.filename
+          status = patch.overall_status.status
+        else:
+          owner = "N/A"
+          filename = "N/A"
+          status = "N/A"
+        data.append([row, issue_id, idx + 1, owner, filename,
+                     patch_apply.branch, explicit, patch_apply.result, conflicts, status])
 
     return data, headers
 

@@ -6,7 +6,10 @@ class PatchApply:
     self.patch = patch
     self.branch = branch
     local_branch = GitUtils.convert_remote_branch_name_to_local(branch)
-    self.explicit = patch.get_applicability(local_branch).explicit
+    if patch:
+      self.explicit = patch.get_applicability(local_branch).explicit
+    else:
+      self.explicit = None
 
     if result not in PatchStatus.ALLOWED_VALUES:
       raise ValueError('result must be a value found in PatchStatus!')
@@ -35,8 +38,10 @@ class PatchStatus:
   APPLIES_CLEANLY = "APPLIES CLEANLY"
   CONFLICT = "CONFLICT"
   PATCH_ALREADY_COMMITTED = "PATCH_ALREADY_COMMITTED"
+  UNKNOWN_ERROR = "UNKNOWN_ERROR"
+  CANNOT_FIND_PATCH = "CANNOT FIND PATCH - POSSIBLE PULL REQUEST?"
 
-  ALLOWED_VALUES = {APPLIES_CLEANLY, CONFLICT, PATCH_ALREADY_COMMITTED}
+  ALLOWED_VALUES = {APPLIES_CLEANLY, CONFLICT, PATCH_ALREADY_COMMITTED, UNKNOWN_ERROR, CANNOT_FIND_PATCH}
 
 
 class PatchApplicability:

@@ -20,6 +20,9 @@ class HadoopJiraWrapper(JiraWrapper):
 
   def get_patches_per_branch(self, issue_id, additional_branches, committed_on_branches):
     issue = self.get_jira_issue(issue_id)
+    if not issue:
+      LOG.error("No Jira issue found for Jira ID: %s", issue)
+      return []
     owner = self.determine_patch_owner(issue)
     patches = self._get_patch_objects(issue, issue_id, owner, committed_on_branches)
     # After this call, we have on 1-1 mappings between patch and branch
@@ -112,7 +115,7 @@ class HadoopJiraWrapper(JiraWrapper):
     # First, let's suppose that we have a patch file targeted to trunk
     # Example filename: YARN-9213.003.patch
     if trunk_search_obj:
-      self._create_patch_object_from_trunk_filename(trunk_search_obj, issue_id, filename, owner, committed_on_branches)
+      return self._create_patch_object_from_trunk_filename(trunk_search_obj, issue_id, filename, owner, committed_on_branches)
     else:
       # Trunk filename pattern did not match.
       # Try to match against pattern that has other branch than trunk.
@@ -121,7 +124,7 @@ class HadoopJiraWrapper(JiraWrapper):
       # YARN-9139.branch-3.1.001.patch
       # YARN-9213.branch3.2.001.patch
       # YARN-9573.001.branch-3.1.patch
-      self._create_patch_object_from_other_branch_filename(sep_char, issue_id, filename, owner, committed_on_branches)
+      return self._create_patch_object_from_other_branch_filename(sep_char, issue_id, filename, owner, committed_on_branches)
 
   @staticmethod
   def _get_separator_char_from_patch_filename(filename):
@@ -177,8 +180,8 @@ class HadoopJiraWrapper(JiraWrapper):
 
       branch_exist = self.git_wrapper.is_branch_exist(parsed_branch)
       if not branch_exist:
-        raise ValueError("Branch does not exist: {}. Please validate if attachment filename is correct, filename: {}"
-                         .format(parsed_branch, filename))
+        LOG.error("Branch does not exist: %s. Please validate if attachment filename is correct, filename: %s", parsed_branch, filename)
+        return None
       if parsed_branch not in committed_on_branches:
         applicability = PatchApplicability(True)
       else:

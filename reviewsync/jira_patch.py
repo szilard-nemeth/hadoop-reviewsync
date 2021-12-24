@@ -39,7 +39,7 @@ class HadoopJiraPatch(JiraPatch):
 
   # TODO verify these
   def __repr__(self):
-    return repr(super(HadoopJiraPatch, self).__repr__() + (self.version, self.target_branches))
+    return super(HadoopJiraPatch, self).__repr__() + repr((self.version, self.target_branches))
 
   # TODO verify these
   def __str__(self):
