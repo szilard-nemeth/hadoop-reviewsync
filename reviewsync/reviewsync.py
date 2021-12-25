@@ -5,13 +5,13 @@ import logging
 import os
 from collections import OrderedDict
 
+from googleapiwrapper.google_sheet import GSheetWrapper, GSheetOptions
 from pythoncommons.file_utils import FileUtils
 from pythoncommons.result_printer import BasicResultPrinter
 from pythoncommons.jira_wrapper import JiraFetchMode
 
 from jira_wrapper import HadoopJiraWrapper
 from git_wrapper import GitWrapper
-from gsheet_wrapper import GSheetWrapper, GSheetOptions
 from os.path import expanduser
 import datetime
 import time
@@ -34,7 +34,7 @@ class ReviewSync:
     self.jira_wrapper = HadoopJiraWrapper(JIRA_URL, DEFAULT_BRANCH, self.patches_root, self.git_wrapper)
     self.issue_fetch_mode = args.fetch_mode
     if self.issue_fetch_mode == JiraFetchMode.GSHEET:
-      self.gsheet_wrapper = GSheetWrapper(args.gsheet_options)
+      self.gsheet_wrapper: GSheetWrapper = GSheetWrapper(args.gsheet_options)
     
   def get_or_fetch_issues(self):
     if self.issue_fetch_mode == JiraFetchMode.ISSUES_CMDLINE:
@@ -45,7 +45,7 @@ class ReviewSync:
       return issues
     elif self.issue_fetch_mode == JiraFetchMode.GSHEET:
       LOG.info("Using Jira fetch mode from GSheet.")
-      return self.gsheet_wrapper.fetch()
+      return self.gsheet_wrapper.fetch_jira_data()
     else:
       raise ValueError("Unknown state! Jira fetch mode should be either "
                        "{} or {} but it is {}"
@@ -256,11 +256,11 @@ class ReviewSync:
       print("Using fetch mode: gsheet")
       args.fetch_mode = JiraFetchMode.GSHEET
       args.gsheet_options = GSheetOptions(args.gsheet_client_secret,
-                                          args.gsheet_spreadsheet,
-                                          args.gsheet_worksheet,
-                                          args.gsheet_jira_column,
-                                          update_date_column=args.gsheet_update_date_column,
-                                          status_column=args.gsheet_status_info_column)
+                                                    args.gsheet_spreadsheet,
+                                                    args.gsheet_worksheet,
+                                                    args.gsheet_jira_column,
+                                                    update_date_column=args.gsheet_update_date_column,
+                                                    status_column=args.gsheet_status_info_column)
     else:
       print("Unknown fetch mode!")
     

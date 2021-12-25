@@ -2,4 +2,5 @@ gitpython
 gspread
 oauth2client
 git+https://github.com/szilard-nemeth/python-commons.git
+git+https://github.com/szilard-nemeth/google-api-wrapper.git
 jira
