@@ -292,7 +292,7 @@ class ReviewSync:
         else:
           # We only have the PatchApply object here, not the Patch
           overall_status = PatchOverallStatus(patch_applies[0].result)
-        self.gsheet_wrapper.update_issue_with_results(issue_id, update_date_str, overall_status)
+        self.gsheet_wrapper.update_issue_with_results(issue_id, update_date_str, overall_status.status)
       
   @staticmethod
   def convert_data_for_result_printer(results):
